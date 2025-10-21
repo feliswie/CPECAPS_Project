@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vehicle Data Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Vehicle Data Dashboard</h1>
+
+  <form id="upload-form" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".xlsx,.csv" required>
+    <button type="submit">Upload Data</button>
+  </form>
+
+  <p id="status"></p>
+
+  <canvas id="chart" width="400" height="200"></canvas>
+
+  <script>
+    document.getElementById('upload-form').onsubmit = async (e) => {
+      e.preventDefault();
+      document.getElementById('status').textContent = "Uploading...";
+      const form = new FormData(e.target);
+      const response = await fetch('/upload', { method: 'POST', body: form });
+      const result = await response.json();
+
+      if (result.status) {
+        document.getElementById('status').textContent = result.status;
+        if (result.underutilized && result.underutilized.length > 0) {
+          alert("Underutilized devices: " + result.underutilized.join(', '));
+        }
+
+        // Fetch summary for chart
+        const res = await fetch('/summary');
+        const data = await res.json();
+        const ctx = document.getElementById('chart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(data),
+            datasets: [{
+              label: 'Device Count per Area',
+              data: Object.values(data),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      } else {
+        document.getElementById('status').textContent = "Error: " + result.error;
+      }
+    };
+  </script>
+</body>
+</html>
