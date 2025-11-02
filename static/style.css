@@ -1,27 +1,8 @@
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  padding: 20px;
-}
-
-form {
-  margin: 20px auto;
-}
-
-button {
-  background-color: #007bff;
-  color: white;
-  padding: 8px 15px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-#status {
-  margin: 10px;
-  font-weight: bold;
-}
+body { font-family: Arial, sans-serif; background: #f7f9fc; color: #222; }
+.container { width: 90%; margin: 20px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+h1,h2 { color: #123; }
+.upload { margin-bottom: 20px; }
+#devices-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+#devices-table th, #devices-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+button { background: #1f6feb; color: white; padding: 6px 10px; border-radius: 6px; border: none; cursor: pointer; }
+button:hover { background: #155ac7; }

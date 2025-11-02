@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Alerts</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>Alerts</h1>
+    <h2>Soft Chase</h2>
+    {% if alerts.soft %}
+      <ul>{% for d in alerts.soft %}<li>{{ d }}</li>{% endfor %}</ul>
+    {% else %}
+      <p>None</p>
+    {% endif %}
+    <h2>Urgent Chase</h2>
+    {% if alerts.urgent %}
+      <ul>{% for d in alerts.urgent %}<li>{{ d }}</li>{% endfor %}</ul>
+    {% else %}
+      <p>None</p>
+    {% endif %}
+    <h2>Device Details</h2>
+    <table border="1">
+      <thead><tr><th>Device_ID</th><th>Last_Sighted_Date</th><th>Location</th><th>Area</th><th>Usage</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for d in devices %}
+          <tr>
+            <td>{{ d.Device_ID }}</td>
+            <td>{{ d.Last_Sighted_Date }}</td>
+            <td>{{ d.Location }}</td>
+            <td>{{ d.Area }}</td>
+            <td>{{ d.Usage }}</td>
+            <td>{{ d.Status }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

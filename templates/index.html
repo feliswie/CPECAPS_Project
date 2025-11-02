@@ -2,60 +2,140 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Vehicle Data Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ascent Vehicle Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    h1, h3 { color: #333; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th { background-color: #007bff; color: white; }
+    canvas { margin: 20px 0; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    button:hover { background: #0056b3; }
+  </style>
 </head>
 <body>
-  <h1>Vehicle Data Dashboard</h1>
+  <h1>Ascent Vehicle Tracking Dashboard</h1>
 
   <form id="upload-form" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".xlsx,.csv" required>
-    <button type="submit">Upload Data</button>
+    <input type="file" name="file" accept=".xlsx">
+    <button type="submit">Upload File</button>
   </form>
 
-  <p id="status"></p>
+  <h3>Status Distribution</h3>
+  <canvas id="statusChart" width="400" height="200"></canvas>
 
-  <canvas id="chart" width="400" height="200"></canvas>
+  <h3>Devices per Area</h3>
+  <canvas id="areaChart" width="600" height="300"></canvas>
+
+  <h3>Data Table</h3>
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th>Device ID</th>
+        <th>Last Sighted</th>
+        <th>Area</th>
+        <th>Days Inactive</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script>
-    document.getElementById('upload-form').onsubmit = async (e) => {
+    const uploadForm = document.getElementById("upload-form");
+    const statusChartEl = document.getElementById("statusChart");
+    const areaChartEl = document.getElementById("areaChart");
+    const dataTableBody = document.querySelector("#data-table tbody");
+
+    let statusChart, areaChart;
+
+    uploadForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      document.getElementById('status').textContent = "Uploading...";
-      const form = new FormData(e.target);
-      const response = await fetch('/upload', { method: 'POST', body: form });
+      const formData = new FormData(uploadForm);
+      const response = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+      });
       const result = await response.json();
+      console.log(result);
 
-      if (result.status) {
-        document.getElementById('status').textContent = result.status;
-        if (result.underutilized && result.underutilized.length > 0) {
-          alert("Underutilized devices: " + result.underutilized.join(', '));
-        }
+      // Fetch processed data for visualization
+      const summaryRes = await fetch("/summary");
+      const summaryData = await summaryRes.json();
 
-        // Fetch summary for chart
-        const res = await fetch('/summary');
-        const data = await res.json();
-        const ctx = document.getElementById('chart').getContext('2d');
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: Object.keys(data),
-            datasets: [{
-              label: 'Device Count per Area',
-              data: Object.values(data),
-              borderWidth: 1
-            }]
-          },
-          options: {
-            scales: {
-              y: { beginAtZero: true }
-            }
-          }
-        });
-      } else {
-        document.getElementById('status').textContent = "Error: " + result.error;
-      }
-    };
+      const tableRes = await fetch("/data");
+      const tableData = await tableRes.json();
+
+      renderCharts(summaryData);
+      renderTable(tableData);
+    });
+
+    function renderCharts(summaryData) {
+      // Destroy previous charts if they exist
+      if (statusChart) statusChart.destroy();
+      if (areaChart) areaChart.destroy();
+
+      // Status Distribution
+      const statusLabels = Object.keys(summaryData.status);
+      const statusValues = Object.values(summaryData.status);
+
+      statusChart = new Chart(statusChartEl, {
+        type: "pie",
+        data: {
+          labels: statusLabels,
+          datasets: [{ data: statusValues, backgroundColor: ["#4CAF50", "#FFC107", "#F44336"] }],
+        },
+      });
+
+      // Devices per Area
+      const areaLabels = Object.keys(summaryData.area);
+      const areaValues = Object.values(summaryData.area);
+
+      areaChart = new Chart(areaChartEl, {
+        type: "bar",
+        data: {
+          labels: areaLabels,
+          datasets: [{ label: "Devices", data: areaValues, backgroundColor: "#007bff" }],
+        },
+      });
+    }
+
+    function renderTable(tableData) {
+      dataTableBody.innerHTML = "";
+      tableData.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.Device_ID}</td>
+          <td>${row.Last_Sighted}</td>
+          <td>${row.Area}</td>
+          <td>${row.Days_Inactive}</td>
+          <td>${row.Status}</td>
+        `;
+        dataTableBody.appendChild(tr);
+      });
+    }
   </script>
 </body>
 </html>

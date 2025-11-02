@@ -1,4 +1,5 @@
-Flask
-pandas
+Flask>=2.2
+pandas>=2.0
 openpyxl
 python-dotenv
+xlrd
