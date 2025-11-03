@@ -194,14 +194,17 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    messageDiv.textContent = 'Upload successful!';
+                    const inserted = result.inserted || 0;
+                    const updated = result.updated || 0;
+                    messageDiv.textContent = `Upload successful! New entries: ${inserted}, Updated entries: ${updated}`;
                     messageDiv.className = 'message success';
                     // refresh Tabulator data
                     try {
-                        await table.setData();
+                        await table.setData('/data');
                     } catch (dataError) {
                         console.error('Error refreshing table:', dataError);
-                        messageDiv.textContent = 'Upload succeeded but error refreshing display. Please refresh the page.';
+                        // keep the upload success message but append a note about display
+                        messageDiv.textContent += ' (refreshed display failed - please reload to see changes)';
                         messageDiv.className = 'message error';
                     }
                 } else {
@@ -213,8 +216,8 @@
                 messageDiv.textContent = 'Upload failed: ' + (error.message || 'Network or server error');
                 messageDiv.className = 'message error';
             }
+            // Keep messages visible by default (no auto-hide)
             messageDiv.style.display = 'block';
-            setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
         };
 
         // FILTERING UI wiring

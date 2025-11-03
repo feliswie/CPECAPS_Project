@@ -25,9 +25,9 @@ def upload():
         df = process_excel_file(file)
         
         # Update database (update existing or insert new records)
-        update_or_insert_data(df)
+        inserted, updated = update_or_insert_data(df)
         
-        return jsonify({"message": "Upload successful"})
+        return jsonify({"message": "Upload successful", "inserted": inserted, "updated": updated})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
