@@ -97,19 +97,82 @@
     </div>
 
     <h1>Raw Data</h1>
-    <table id="raw-data-table">
-        <thead>
-            <tr>
-                <th>Device ID</th>
-                <th>Last Sighted Date</th>
-                <th>Last Sighted Location</th>
-                <th>Location Code</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+
+    <!-- Filters -->
+    <div id="filters" style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <label>Device ID: <input id="filter-device" placeholder="DEV123" style="padding:6px;" /></label>
+        <label>Location: <input id="filter-location" placeholder="Building A" style="padding:6px;" /></label>
+        <label>Location Code: <input id="filter-location-code" placeholder="LOC1" style="padding:6px;" /></label>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <label>Last Sighted:</label>
+            <select id="filter-date-type" style="padding:6px;">
+                <option value="on">on</option>
+                <option value="before">before</option>
+                <option value="after">after</option>
+            </select>
+            <input id="filter-date" type="date" style="padding:6px;" />
+        </div>
+        <button id="apply-filters" style="padding:8px 12px;">Apply</button>
+        <button id="clear-filters" style="padding:8px 12px;">Clear</button>
+    </div>
+
+    <!-- Tabulator table placeholder -->
+    <div id="tabulator-table"></div>
+
+    <!-- Tabulator CSS/JS -->
+    <link href="https://unpkg.com/tabulator-tables@5.4.4/dist/css/tabulator.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/tabulator-tables@5.4.4/dist/js/tabulator.min.js"></script>
 
     <script>
+        // Create Tabulator instance
+        const table = new Tabulator("#tabulator-table", {
+            ajaxURL: "/data",
+            ajaxConfig: { method: "GET" },
+        layout: "fitDataStretch",
+        placeholder: "No Data Available",
+        movableColumns: true,
+        resizableColumns: true,
+        // Performance options for large datasets
+        virtualDom: true,
+        virtualDomBuffer: 100,
+        pagination: "local",
+        paginationSize: 100,
+            columns: [
+                {title: "Device ID", field: "Device_ID", headerFilter:false, hozAlign: "left", headerSort:true, width:180},
+                {
+                    title: "Last Sighted Date", 
+                    field: "Last_Sighted_Date", 
+                    headerSort:true,
+                    formatter: function(cell) {
+                        // Input is YYYY-MM-DD HH:MM:SS, output as YYYY-MM-DD
+                        const value = cell.getValue();
+                        return value ? String(value).slice(0,10) : "";
+                    }
+                },
+                {title: "Last Sighted Location", field: "Last_Sighted_Location", headerSort:true},
+                {title: "Location Code", field: "Location_Code", headerSort:true, width:120}
+            ],
+        });
+
+        // Persist column layout (order and widths) in localStorage
+        const storageKey = 'tabulator-telemetry-columns';
+        function saveLayout(){
+            try{
+                const layout = table.getColumnLayout();
+                localStorage.setItem(storageKey, JSON.stringify(layout));
+            }catch(e){/* ignore */}
+        }
+        function restoreLayout(){
+            const stored = localStorage.getItem(storageKey);
+            if(stored){
+                try{ table.setColumnLayout(JSON.parse(stored)); }catch(e){ console.warn('Failed to restore layout', e); }
+            }
+        }
+        table.on("columnMoved", saveLayout);
+        table.on("columnResized", saveLayout);
+        // try restore on init
+        restoreLayout();
+
         // Handle file upload
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
@@ -117,6 +180,13 @@
             const messageDiv = document.getElementById('message');
             
             try {
+                // Show uploading message
+                messageDiv.textContent = 'Uploading...';
+                messageDiv.className = 'message';
+                messageDiv.style.display = 'block';
+                messageDiv.style.backgroundColor = '#e2e3e5';
+                messageDiv.style.color = '#383d41';
+                
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
@@ -126,47 +196,87 @@
                 if (response.ok) {
                     messageDiv.textContent = 'Upload successful!';
                     messageDiv.className = 'message success';
-                    loadRawData(); // Refresh the table
+                    // refresh Tabulator data
+                    try {
+                        await table.setData();
+                    } catch (dataError) {
+                        console.error('Error refreshing table:', dataError);
+                        messageDiv.textContent = 'Upload succeeded but error refreshing display. Please refresh the page.';
+                        messageDiv.className = 'message error';
+                    }
                 } else {
-                    messageDiv.textContent = result.error;
+                    messageDiv.textContent = result.error || 'Upload failed: Please check file format and dates';
                     messageDiv.className = 'message error';
                 }
             } catch (error) {
-                messageDiv.textContent = 'Upload failed: ' + error;
+                console.error('Upload error:', error);
+                messageDiv.textContent = 'Upload failed: ' + (error.message || 'Network or server error');
                 messageDiv.className = 'message error';
             }
             messageDiv.style.display = 'block';
-            setTimeout(() => {
-                messageDiv.style.display = 'none';
-            }, 5000);
+            setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
         };
 
-        // Load and display data
-        async function loadRawData() {
-            try {
-                const response = await fetch('/data');
-                const data = await response.json();
-                
-                const tbody = document.querySelector('#raw-data-table tbody');
-                tbody.innerHTML = '';
-                
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${row.Device_ID}</td>
-                        <td>${row.Last_Sighted_Date}</td>
-                        <td>${row.Last_Sighted_Location}</td>
-                        <td>${row.Location_Code}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (error) {
-                console.error('Failed to load data:', error);
+        // FILTERING UI wiring
+        function applyFilters(){
+            const device = document.getElementById('filter-device').value.trim();
+            const location = document.getElementById('filter-location').value.trim();
+            const locationCode = document.getElementById('filter-location-code').value.trim();
+            const dateType = document.getElementById('filter-date-type').value;
+            const dateValue = document.getElementById('filter-date').value;
+
+            // if no filters, show full table
+            if(!device && !location && !locationCode && !dateValue){
+                table.clearFilter();
+                return;
             }
+
+            // Use a custom filter function to handle all conditions
+            table.setFilter(function(data){
+                // Device ID (contains, case-insensitive)
+                if(device && (!data.Device_ID || !data.Device_ID.toLowerCase().includes(device.toLowerCase()))){
+                    return false;
+                }
+
+                // Location (contains, case-insensitive)
+                if(location && (!data.Last_Sighted_Location || !data.Last_Sighted_Location.toLowerCase().includes(location.toLowerCase()))){
+                    return false;
+                }
+
+                // Location Code (contains, case-insensitive)
+                if(locationCode && (!data.Location_Code || !data.Location_Code.toLowerCase().includes(locationCode.toLowerCase()))){
+                    return false;
+                }
+
+                // Date comparison
+                if(dateValue && data.Last_Sighted_Date){
+                    const rowDate = String(data.Last_Sighted_Date).slice(0,10);
+                    switch(dateType){
+                        case 'on':
+                            if(rowDate !== dateValue) return false;
+                            break;
+                        case 'before':
+                            if(!(rowDate < dateValue)) return false;
+                            break;
+                        case 'after':
+                            if(!(rowDate > dateValue)) return false;
+                            break;
+                    }
+                }
+
+                return true;
+            });
         }
 
-        // Load data when page loads
-        document.addEventListener('DOMContentLoaded', loadRawData);
+        document.getElementById('apply-filters').addEventListener('click', applyFilters);
+        document.getElementById('clear-filters').addEventListener('click', function(){
+            document.getElementById('filter-device').value = '';
+            document.getElementById('filter-location').value = '';
+            document.getElementById('filter-location-code').value = '';
+            document.getElementById('filter-date-type').value = 'on';
+            document.getElementById('filter-date').value = '';
+            table.clearFilter();
+        });
     </script>
 </body>
 </html>

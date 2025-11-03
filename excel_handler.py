@@ -25,9 +25,14 @@ def process_excel_file(file):
         raw = raw.iloc[1:].reset_index(drop=True)
 
     # Create DataFrame with specific columns (skip first column)
+    # Convert dates with error handling
+    dates = pd.to_datetime(raw.iloc[:, 2], errors='coerce')
+    if dates.isna().any():
+        raise ValueError("Some dates in column 3 are not in a valid format. Please ensure all dates are valid.")
+        
     df = pd.DataFrame({
         'Device_ID': raw.iloc[:, 1].astype(str).str.strip(),
-        'Last_Sighted_Date': pd.to_datetime(raw.iloc[:, 2]).dt.strftime('%Y-%m-%d %H:%M:%S'),
+        'Last_Sighted_Date': dates.dt.strftime('%Y-%m-%d %H:%M:%S'),
         'Last_Sighted_Location': raw.iloc[:, 3].astype(str).str.strip(),
         'Location_Code': raw.iloc[:, 4].astype(str).str.strip()
     })
