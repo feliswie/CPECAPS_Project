@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Data View</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .nav-bar {
+            margin-bottom: 20px;
+        }
+        .nav-bar a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .upload-section {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .instructions {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <a href="/">← Back to Home</a>
+    </div>
+
+    <div class="upload-section">
+        <h2>Upload Excel File</h2>
+        <div class="instructions">
+            <p>Excel file must contain these columns in order:</p>
+            <ol>
+                <li>Column 1: (Ignored)</li>
+                <li>Column 2: Device ID</li>
+                <li>Column 3: Last Sighted Date</li>
+                <li>Column 4: Last Sighted Location</li>
+                <li>Column 5: Location Code</li>
+            </ol>
+            <p>Note: Headers are optional. If present, they will be automatically detected and skipped.</p>
+        </div>
+        <form id="uploadForm">
+            <input type="file" name="file" accept=".xlsx,.xls" required>
+            <button type="submit">Upload</button>
+        </form>
+        <div id="message" class="message"></div>
+    </div>
+
+    <h1>Raw Data</h1>
+    <table id="raw-data-table">
+        <thead>
+            <tr>
+                <th>Device ID</th>
+                <th>Last Sighted Date</th>
+                <th>Last Sighted Location</th>
+                <th>Location Code</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        // Handle file upload
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const messageDiv = document.getElementById('message');
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    messageDiv.textContent = 'Upload successful!';
+                    messageDiv.className = 'message success';
+                    loadRawData(); // Refresh the table
+                } else {
+                    messageDiv.textContent = result.error;
+                    messageDiv.className = 'message error';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Upload failed: ' + error;
+                messageDiv.className = 'message error';
+            }
+            messageDiv.style.display = 'block';
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        };
+
+        // Load and display data
+        async function loadRawData() {
+            try {
+                const response = await fetch('/data');
+                const data = await response.json();
+                
+                const tbody = document.querySelector('#raw-data-table tbody');
+                tbody.innerHTML = '';
+                
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.Device_ID}</td>
+                        <td>${row.Last_Sighted_Date}</td>
+                        <td>${row.Last_Sighted_Location}</td>
+                        <td>${row.Location_Code}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadRawData);
+    </script>
+</body>
+</html>
