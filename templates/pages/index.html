@@ -12,8 +12,8 @@
         .btn:active { transform:scale(.97); }
         .view-btn { background:#007bff; color:#fff; }
         .view-btn:hover { background:#0056b3; }
-        .clear-btn { background:#dc3545; color:#fff; }
-        .clear-btn:hover { background:#c82333; }
+        .red-btn { background:#dc3545; color:#fff; }
+        .red-btn:hover { background:#c82333; }
         h1 { font-weight:600; margin:0 0 32px; font-size:clamp(1.8rem,4vw,2.4rem); letter-spacing:.5px; }
         .note { margin-top:40px; font-size:14px; color:#555; }
     </style>
@@ -23,7 +23,8 @@
     <main>
         <h1>DEBUG OPTIONS</h1>
         <div class="button-grid">
-            <button onclick="clearDatabase()" class="btn clear-btn">Clear Database</button>
+            <button onclick="clearDatabase()" class="btn red-btn">Clear Database</button>
+            <button onclick="updateDatabase()" class="btn red-btn">Update Database</button>
         </div>
         <p class="note">Use the navigation bar for other pages. Clearing the database cannot be undone.</p>
     </main>
@@ -36,6 +37,15 @@
                 if(response.ok){ alert('Database cleared successfully'); }
                 else { alert('Error: ' + (result.error || 'Unknown')); }
             } catch(err){ alert('Failed to clear database: ' + err); }
+        }
+        async function updateDatabase(){
+            if(!confirm('Update the database with new telemetry data? This will compute for entries with missing data.')) return;
+            try {
+                const response = await fetch("{{ url_for('update_database') }}", { method:'POST' });
+                const result = await response.json();
+                if(response.ok){ alert('Database updated successfully'); }
+                else { alert('Error: ' + (result.error || 'Unknown')); }
+            } catch(err){ alert('Failed to update database: ' + err); }
         }
     </script>
 </body>

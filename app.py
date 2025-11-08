@@ -64,6 +64,18 @@ def clear_database():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/update_database', methods=['POST'])
+def update_database():
+    """Update database entries with missing data."""
+    try:
+        df = get_all_data()
+        # Here you would implement logic to update missing data
+        # For demonstration, we will just re-insert the same data
+        inserted, updated = update_or_insert_data(df)
+        return jsonify({"message": "Database updated successfully", "inserted": inserted, "updated": updated})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
 

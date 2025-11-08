@@ -13,31 +13,6 @@ def init_db():
                     Location_Code TEXT,
                     PRIMARY KEY (Device_ID))''')
     
-    # Create upload_stats table to track history
-    conn.execute('''CREATE TABLE IF NOT EXISTS upload_stats
-                   (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    prev_upload_date TEXT,
-                    last_upload_date TEXT,
-                    prev_total_entry_count INTEGER,
-                    last_total_entry_count INTEGER,
-                    prev_new_entry_count INTEGER,
-                    last_new_entry_count INTEGER,
-                    prev_updated_entry_count INTEGER,
-                    last_updated_entry_count INTEGER)''')
-    
-    # Initialize stats if empty
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(*) FROM upload_stats')
-    if cursor.fetchone()[0] == 0:
-        # Insert initial row with zeros
-        cursor.execute('''
-            INSERT INTO upload_stats 
-            (prev_upload_date, last_upload_date,
-             prev_total_entry_count, last_total_entry_count,
-             prev_new_entry_count, last_new_entry_count,
-             prev_updated_entry_count, last_updated_entry_count)
-            VALUES (NULL, NULL, 0, 0, 0, 0, 0, 0)
-        ''')
     conn.commit()
     conn.close()
 
