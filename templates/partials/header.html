@@ -1,0 +1,15 @@
+<header style="background:#0d1117;color:#fff;position:sticky;top:0;z-index:1000;border-bottom:1px solid #30363d;">
+  <nav style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:10px 16px;">
+    <a href="{{ url_for('index') }}" style="color:#fff;text-decoration:none;font-weight:600;">Ascent</a>
+    <span style="flex:1"></span>
+    <a href="{{ url_for('index') }}" class="nav-link{% if request.endpoint == 'index' %} active{% endif %}">Home</a>
+    <a href="{{ url_for('raw_data') }}" class="nav-link{% if request.endpoint == 'raw_data' %} active{% endif %}">Raw Data</a>
+    <a href="{{ url_for('dashboard') }}" class="nav-link{% if request.endpoint == 'dashboard' %} active{% endif %}">Dashboard</a>
+    <a href="{{ url_for('alerts') }}" class="nav-link{% if request.endpoint == 'alerts' %} active{% endif %}">Alerts</a>
+  </nav>
+  <style>
+    .nav-link{color:#c9d1d9;text-decoration:none;padding:6px 10px;border-radius:6px;display:inline-block}
+    .nav-link:hover{background:#161b22;color:#fff}
+    .nav-link.active{background:#161b22;color:#fff}
+  </style>
+</header>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Dashboard</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+	<style>
+		.container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+		.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+		.card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+		.muted { color:#666; }
+	</style>
+	<script>
+		// Placeholder for future dashboard scripts
+	</script>
+	</head>
+<body>
+	{% include 'partials/header.html' %}
+	<div class="container">
+		<h1>Dashboard</h1>
+		<p class="muted">Coming soon. Use the navigation to explore other pages.</p>
+		<div class="cards">
+			<div class="card">
+				<h3>Total Devices</h3>
+				<p class="muted">—</p>
+			</div>
+			<div class="card">
+				<h3>Active Today</h3>
+				<p class="muted">—</p>
+			</div>
+			<div class="card">
+				<h3>Alerts</h3>
+				<p class="muted">—</p>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

@@ -10,8 +10,8 @@ init_db()
 
 @app.route('/')
 def index():
-    """Simple homepage with link to raw data view."""
-    return render_template('index.html')
+    """Homepage"""
+    return render_template('pages/index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -34,7 +34,17 @@ def upload():
 @app.route('/raw_data')
 def raw_data():
     """Display raw data page."""
-    return render_template('raw_data.html')
+    return render_template('pages/raw_data.html')
+
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard placeholder page."""
+    return render_template('pages/dashboard.html')
+
+@app.route('/alerts')
+def alerts():
+    """Alerts placeholder page; supply minimal context to render the template."""
+    return render_template('pages/alerts.html', alerts={"soft": [], "urgent": []}, devices=[])
 
 @app.route('/data')
 def data():

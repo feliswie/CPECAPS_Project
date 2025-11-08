@@ -7,7 +7,6 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
             background-color: #f5f5f5;
         }
         .nav-bar {
@@ -72,9 +71,7 @@
     </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <a href="/">← Back to Home</a>
-    </div>
+    {% include 'partials/header.html' %}
 
     <div class="upload-section">
         <h2>Upload Excel File</h2>
