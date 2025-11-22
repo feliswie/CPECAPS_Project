@@ -2,51 +2,405 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Ascent - Vehicle Tracking</title>
+    <title>Workbook Consolidator</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
-        body { font-family: Arial, sans-serif; background:#f5f5f5; }
-        main { max-width:900px; margin:40px auto; padding:0 24px; }
-        .button-grid { display:grid; gap:22px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-        .btn { padding:18px 26px; font-size:18px; border:none; border-radius:8px; cursor:pointer; text-decoration:none; text-align:center; transition:background-color .25s, transform .2s; box-shadow:0 2px 4px rgba(0,0,0,.08); }
-        .btn:active { transform:scale(.97); }
-        .view-btn { background:#007bff; color:#fff; }
-        .view-btn:hover { background:#0056b3; }
-        .red-btn { background:#dc3545; color:#fff; }
-        .red-btn:hover { background:#c82333; }
-        h1 { font-weight:600; margin:0 0 32px; font-size:clamp(1.8rem,4vw,2.4rem); letter-spacing:.5px; }
-        .note { margin-top:40px; font-size:14px; color:#555; }
+        :root {
+            --blue-500:#2563eb;
+            --blue-600:#1d4ed8;
+            --gray-100:#f3f4f6;
+            --gray-200:#e5e7eb;
+            --gray-300:#d1d5db;
+            --gray-500:#6b7280;
+            --gray-700:#374151;
+            --gray-900:#111827;
+            --success:#16a34a;
+            --warning:#f59e0b;
+            --error:#dc2626;
+        }
+        * { box-sizing: border-box; }
+        body { font-family:"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin:0; background:var(--gray-100); color:var(--gray-900); }
+        main.pipeline-page { max-width:1200px; margin:32px auto 72px; padding:0 24px 48px; display:flex; flex-direction:column; gap:32px; }
+        .page-heading h1 { margin:0; font-size:clamp(1.8rem, 3vw, 2.6rem); font-weight:600; }
+        .page-heading p { margin:8px 0 0; color:var(--gray-500); max-width:720px; }
+        .flow-grid { display:grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap:24px; align-items:start; }
+        .flow-column { display:flex; flex-direction:column; gap:18px; }
+        .upload-card { background:#fff; border-radius:18px; padding:20px 22px; border:1px solid var(--gray-200); box-shadow:0 8px 28px rgba(15,23,42,0.05); }
+        .upload-card h3 { margin:0 0 6px; font-size:1.05rem; font-weight:600; }
+        .upload-card p { margin:0 0 14px; color:var(--gray-500); font-size:0.92rem; }
+    .upload-box { border:2px dashed var(--blue-500); border-radius:14px; padding:18px; text-align:center; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:background 0.2s,border-color 0.2s, box-shadow 0.2s; }
+    .upload-box:hover { background:#eff6ff; border-color:var(--blue-600); }
+    .upload-box.drag-over { background:#dbeafe; border-color:var(--blue-600); box-shadow:0 0 0 3px rgba(37,99,235,.2) inset; }
+        .upload-box input[type="file"] { display:none; }
+        .upload-box span { font-weight:600; color:var(--blue-600); }
+        .file-meta { margin-top:8px; font-size:0.9rem; color:var(--gray-500); display:flex; align-items:center; gap:6px; }
+        .status-dot { width:8px; height:8px; border-radius:999px; background:var(--gray-200); display:inline-block; }
+        .status-dot.ready { background:var(--success); }
+        .status-dot.waiting { background:var(--gray-300); }
+        .status-dot.error { background:var(--error); }
+        .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+        button.primary { background:var(--blue-500); border:none; border-radius:999px; padding:14px 28px; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; transition:transform .2s, background .2s, opacity .2s; box-shadow:0 10px 20px rgba(37,99,235,.25); }
+        button.primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
+        button.primary:not(:disabled):hover { background:var(--blue-600); transform:translateY(-1px); }
+        .status-message { font-size:0.92rem; color:var(--gray-500); min-height:20px; }
+        .status-message.error { color:var(--error); }
+        .status-message.success { color:var(--success); }
+        .result-card { background:#0f172a; color:#fff; border-radius:22px; padding:28px; box-shadow:0 25px 50px rgba(15,23,42,.45); display:flex; flex-direction:column; gap:12px; position:relative; overflow:hidden; }
+        .result-card::after { content:""; position:absolute; inset:auto -30px -40px; height:120px; background:radial-gradient(circle at 20% 0%, rgba(59,130,246,.4), transparent 70%); pointer-events:none; }
+        .result-icon { width:54px; height:54px; border-radius:16px; border:1px solid rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.08); font-size:1.5rem; }
+        .result-card h3 { margin:0; font-size:1.3rem; }
+        .result-card p { margin:0; color:#cbd5f5; font-size:0.95rem; }
+        button.secondary { background:#fff; color:var(--gray-900); border:none; border-radius:12px; padding:12px 20px; font-weight:600; cursor:pointer; transition:opacity .2s, transform .2s; }
+        button.secondary:disabled { opacity:.5; cursor:not-allowed; }
+        button.secondary:not(:disabled):hover { transform:translateY(-1px); }
+        .progress-panel { background:#fff; border-radius:22px; padding:28px; border:1px solid var(--gray-200); box-shadow:0 10px 35px rgba(15,23,42,.04); }
+        .progress-panel h2 { margin:0 0 18px; font-size:1.3rem; }
+        .phase-list { display:flex; flex-direction:column; gap:18px; }
+        .phase-row { border:1px solid var(--gray-200); border-radius:18px; padding:16px 18px; background:var(--gray-50,#f9fafb); }
+        .phase-heading { display:flex; justify-content:space-between; gap:12px; font-weight:600; font-size:0.95rem; color:var(--gray-700); }
+        .phase-text { margin:6px 0 10px; color:var(--gray-500); font-size:0.9rem; }
+        .progress-bar { width:100%; height:8px; background:var(--gray-200); border-radius:999px; overflow:hidden; }
+        .progress-fill { height:100%; background:linear-gradient(90deg, var(--blue-500), #34d399); width:0%; transition:width .3s ease; }
+        .phase-row.error { border-color:var(--error); background:#fef2f2; }
+        .phase-row.completed { border-color:var(--success); }
+        .phase-percent { color:var(--gray-500); font-size:0.85rem; }
+        .helper { font-size:0.85rem; color:var(--gray-500); margin:0; }
+        @media (max-width: 960px) {
+            .flow-grid { grid-template-columns:1fr; }
+            .result-card { order:-1; }
+        }
     </style>
 </head>
 <body>
     {% include 'partials/header.html' %}
-    <main>
-        <h1>DEBUG OPTIONS</h1>
-        <div class="button-grid">
-            <button onclick="clearDatabase()" class="btn red-btn">Clear Database</button>
-            <button onclick="updateDatabase()" class="btn red-btn">Update Database</button>
-        </div>
-        <p class="note">Use the navigation bar for other pages. Clearing the database cannot be undone.</p>
+    <main class="pipeline-page">
+        <section class="page-heading">
+            <h1>Field Workbook Consolidator</h1>
+            <p>Upload the latest DMS dump, repJourney export, and MAIN inventory workbook. We will normalize, merge, and enrich everything for you while you watch the four pipeline phases progress.</p>
+        </section>
+
+        <section class="flow-grid">
+            <div class="flow-column">
+                <article class="upload-card" data-upload="dms">
+                    <h3>Upload DMS Dump</h3>
+                    <p>Device roster exported from DMS. We use it to normalize Device IDs.</p>
+                    <label class="upload-box">
+                        <input type="file" id="dms-input" accept=".xls,.xlsx" />
+                        <span>Select or drag a workbook</span>
+                        <small>.xls / .xlsx • Sheet should include <strong>Device_ID</strong></small>
+                    </label>
+                    <div class="file-meta"><span class="status-dot waiting"></span><span data-file-label="dms">Waiting for file</span></div>
+                </article>
+
+                <article class="upload-card" data-upload="rep">
+                    <h3>Upload repJourney Dump</h3>
+                    <p>Journey export that contains <strong>Begin Journey Date</strong> and movement history.</p>
+                    <label class="upload-box">
+                        <input type="file" id="rep-input" accept=".xls,.xlsx" />
+                        <span>Add repJourney workbook</span>
+                        <small>Ensure headers include Begin Journey Date & Destination</small>
+                    </label>
+                    <div class="file-meta"><span class="status-dot waiting"></span><span data-file-label="rep">Waiting for file</span></div>
+                </article>
+
+                <article class="upload-card" data-upload="main">
+                    <h3>Upload Main Inventory</h3>
+                    <p>The master workbook that holds <strong>DMS Dump</strong>, month sheets, and the MAIN sheet.</p>
+                    <label class="upload-box">
+                        <input type="file" id="main-input" accept=".xls,.xlsx" />
+                        <span>Attach MAIN workbook</span>
+                        <small>Must include sheets: DMS Dump, MMMYYYY, and MAIN</small>
+                    </label>
+                    <div class="file-meta"><span class="status-dot waiting"></span><span data-file-label="main">Waiting for file</span></div>
+                </article>
+
+                <div class="actions">
+                    <button class="primary" id="process-btn" disabled>Process &amp; Generate File</button>
+                    <p class="helper" id="helper-text">All three files are required to start processing.</p>
+                </div>
+                <p class="status-message" id="status-message"></p>
+            </div>
+
+            <aside class="result-card">
+                <div class="result-icon">✔</div>
+                <h3>Your consolidated file is ready</h3>
+                <p id="result-subtext">Waiting for processing to begin.</p>
+                <button class="secondary" id="download-btn" disabled>Download</button>
+            </aside>
+        </section>
+
+        <section class="progress-panel">
+            <h2>Processing status</h2>
+            <div class="phase-list">
+                <article class="phase-row" data-phase="1">
+                    <div class="phase-heading">
+                        <span>Phase 1: DMS normalization</span>
+                        <span class="phase-percent" data-phase-percent="1">0%</span>
+                    </div>
+                    <p class="phase-text" data-phase-text="1">Waiting to begin.</p>
+                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="1"></div></div>
+                </article>
+                <article class="phase-row" data-phase="2">
+                    <div class="phase-heading">
+                        <span>Phase 2: repJourney merge</span>
+                        <span class="phase-percent" data-phase-percent="2">0%</span>
+                    </div>
+                    <p class="phase-text" data-phase-text="2">Waiting to begin.</p>
+                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="2"></div></div>
+                </article>
+                <article class="phase-row" data-phase="3">
+                    <div class="phase-heading">
+                        <span>Phase 3: MAIN enrichment</span>
+                        <span class="phase-percent" data-phase-percent="3">0%</span>
+                    </div>
+                    <p class="phase-text" data-phase-text="3">Waiting to begin.</p>
+                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="3"></div></div>
+                </article>
+                <article class="phase-row" data-phase="4">
+                    <div class="phase-heading">
+                        <span>Phase 4: Completed, ready for human review</span>
+                        <span class="phase-percent" data-phase-percent="4">0%</span>
+                    </div>
+                    <p class="phase-text" data-phase-text="4">Waiting to begin.</p>
+                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="4"></div></div>
+                </article>
+            </div>
+        </section>
     </main>
+
     <script>
-        async function clearDatabase(){
-            if(!confirm('Clear ALL telemetry records? This action is irreversible.')) return;
-            try {
-                const response = await fetch("{{ url_for('clear_database') }}", { method:'POST' });
-                const result = await response.json();
-                if(response.ok){ alert('Database cleared successfully'); }
-                else { alert('Error: ' + (result.error || 'Unknown')); }
-            } catch(err){ alert('Failed to clear database: ' + err); }
+        const fileInputs = {
+            dms: document.getElementById('dms-input'),
+            rep: document.getElementById('rep-input'),
+            main: document.getElementById('main-input')
+        };
+        const processBtn = document.getElementById('process-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const statusMessage = document.getElementById('status-message');
+        const helperText = document.getElementById('helper-text');
+        const resultSubtext = document.getElementById('result-subtext');
+        const PHASE_LABELS = {
+            1: 'Phase 1: DMS normalization',
+            2: 'Phase 2: repJourney merge',
+            3: 'Phase 3: MAIN enrichment',
+            4: 'Phase 4: Completed, ready for human review'
+        };
+
+        const state = {
+            files: { dms: null, rep: null, main: null },
+            processing: false,
+            polling: null
+        };
+
+        Object.entries(fileInputs).forEach(([key, input]) => {
+            input.addEventListener('change', () => {
+                const file = input.files?.[0] || null;
+                setSelectedFile(key, file);
+            });
+            const dropZone = document.querySelector(`.upload-card[data-upload="${key}"] .upload-box`);
+            if(dropZone){
+                setupDragAndDrop(dropZone, key);
+            }
+        });
+
+        window.addEventListener('dragover', (event) => event.preventDefault());
+        window.addEventListener('drop', (event) => event.preventDefault());
+
+        function updateFileMeta(key){
+            const label = document.querySelector(`[data-file-label="${key}"]`);
+            const dot = label?.previousElementSibling;
+            if(!label || !dot) return;
+            const file = state.files[key];
+            if(file){
+                label.textContent = file.name;
+                dot.className = 'status-dot ready';
+            } else {
+                label.textContent = 'Waiting for file';
+                dot.className = 'status-dot waiting';
+            }
         }
-        async function updateDatabase(){
-            if(!confirm('Update the database with new telemetry data? This will compute for entries with missing data.')) return;
-            try {
-                const response = await fetch("{{ url_for('update_database') }}", { method:'POST' });
-                const result = await response.json();
-                if(response.ok){ alert('Database updated successfully'); }
-                else { alert('Error: ' + (result.error || 'Unknown')); }
-            } catch(err){ alert('Failed to update database: ' + err); }
+
+        function setSelectedFile(key, file){
+            state.files[key] = file || null;
+            if(file){
+                syncNativeInput(key, file);
+            } else if(fileInputs[key]){
+                fileInputs[key].value = '';
+            }
+            updateFileMeta(key);
+            evaluateReadyState();
         }
+
+        function syncNativeInput(key, file){
+            const input = fileInputs[key];
+            if(!input || !window.DataTransfer) return;
+            try {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+            } catch (err) {
+                console.warn('Unable to sync drop file to input', err);
+            }
+        }
+
+        function evaluateReadyState(){
+            const ready = state.files.dms && state.files.rep && state.files.main;
+            processBtn.disabled = !ready || state.processing;
+            helperText.textContent = ready ? 'All inputs look good. Click Process to begin.' : 'All three files are required to start processing.';
+        }
+
+        function setupDragAndDrop(dropZone, key){
+            ['dragenter','dragover'].forEach(evt => {
+                dropZone.addEventListener(evt, (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    dropZone.classList.add('drag-over');
+                });
+            });
+            ['dragleave','drop'].forEach(evt => {
+                dropZone.addEventListener(evt, (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if(evt === 'dragleave' && dropZone.contains(event.relatedTarget)) return;
+                    dropZone.classList.remove('drag-over');
+                });
+            });
+            dropZone.addEventListener('drop', (event) => {
+                const files = event.dataTransfer?.files;
+                if(!files?.length) return;
+                const file = files[0];
+                if(!/\.xls[x]?$/i.test(file.name)){
+                    statusMessage.textContent = 'Please drop an Excel workbook (.xls or .xlsx).';
+                    statusMessage.className = 'status-message error';
+                    return;
+                }
+                setSelectedFile(key, file);
+            });
+        }
+
+        processBtn.addEventListener('click', () => {
+            if(state.processing) return;
+            submitForProcessing();
+        });
+
+        async function submitForProcessing(){
+            const ready = state.files.dms && state.files.rep && state.files.main;
+            if(!ready) return;
+            const formData = new FormData();
+            formData.append('dms_file', state.files.dms);
+            formData.append('rep_file', state.files.rep);
+            formData.append('main_file', state.files.main);
+
+            setProcessingState(true);
+            statusMessage.textContent = 'Uploading files and starting the pipeline…';
+            statusMessage.className = 'status-message';
+            resultSubtext.textContent = 'Crunching data…';
+            downloadBtn.disabled = true;
+
+            try {
+                const response = await fetch('/process', { method:'POST', body: formData });
+                const payload = await response.json().catch(() => ({}));
+                if(!response.ok){
+                    throw new Error(payload.error || 'Failed to start processing.');
+                }
+                statusMessage.textContent = 'Pipeline started. Tracking progress…';
+                startPolling();
+            } catch (err){
+                setProcessingState(false);
+                statusMessage.textContent = err.message;
+                statusMessage.className = 'status-message error';
+            }
+        }
+
+        function setProcessingState(isProcessing){
+            state.processing = isProcessing;
+            processBtn.disabled = isProcessing || !(state.files.dms && state.files.rep && state.files.main);
+            Object.values(fileInputs).forEach(input => input.disabled = isProcessing);
+        }
+
+        function startPolling(){
+            clearInterval(state.polling);
+            state.polling = setInterval(fetchProgress, 900);
+            fetchProgress();
+        }
+
+        async function fetchProgress(){
+            try {
+                const response = await fetch('/progress');
+                const data = await response.json();
+                updateProgressUI(data);
+                if(data.overall_status === 'completed'){
+                    clearInterval(state.polling);
+                    setProcessingState(false);
+                    downloadBtn.disabled = false;
+                    resultSubtext.textContent = 'Ready! Download the refreshed MAIN workbook.';
+                    statusMessage.textContent = 'Processing complete. Download is ready.';
+                    statusMessage.className = 'status-message success';
+                } else if(data.overall_status === 'error'){
+                    clearInterval(state.polling);
+                    setProcessingState(false);
+                    downloadBtn.disabled = true;
+                    statusMessage.textContent = data.error || 'Processing failed. Check phase details.';
+                    statusMessage.className = 'status-message error';
+                    resultSubtext.textContent = 'Resolve the highlighted errors to continue.';
+                }
+            } catch (err){
+                console.error('Progress polling failed', err);
+            }
+        }
+
+        function updateProgressUI(data){
+            Object.keys(PHASE_LABELS).forEach(key => {
+                const row = document.querySelector(`.phase-row[data-phase="${key}"]`);
+                const percentLabel = document.querySelector(`[data-phase-percent="${key}"]`);
+                const textLabel = document.querySelector(`[data-phase-text="${key}"]`);
+                const bar = document.querySelector(`[data-phase-progress="${key}"]`);
+                const phaseState = data?.phases?.[key] || {};
+                const pct = Math.round(phaseState.percent || 0);
+                if(percentLabel) percentLabel.textContent = `${pct}%`;
+                if(bar) bar.style.width = `${pct}%`;
+                const total = phaseState.total_rows ?? phaseState.total ?? 0;
+                const processed = phaseState.processed_rows ?? phaseState.processed ?? 0;
+                const detail = phaseState.message || `${PHASE_LABELS[key]} – ${pct}% (${processed.toLocaleString()} / ${total.toLocaleString()} rows)`;
+                if(textLabel) textLabel.textContent = detail;
+                if(row){
+                    row.classList.toggle('completed', phaseState.status === 'done');
+                    row.classList.toggle('error', phaseState.status === 'error');
+                }
+            });
+            if(data?.download_ready){
+                downloadBtn.disabled = false;
+            }
+        }
+
+        downloadBtn.addEventListener('click', async () => {
+            if(downloadBtn.disabled) return;
+            try {
+                const response = await fetch('/download');
+                if(!response.ok){
+                    throw new Error('Download is not ready yet.');
+                }
+                const blob = await response.blob();
+                const disposition = response.headers.get('Content-Disposition') || '';
+                let filename = 'Consolidated_MAIN.xlsx';
+                const matches = disposition.match(/filename="?([^";]+)"?/i);
+                if(matches?.[1]) filename = matches[1];
+                const url = window.URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = filename;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                window.URL.revokeObjectURL(url);
+            } catch(err){
+                statusMessage.textContent = err.message;
+                statusMessage.className = 'status-message error';
+            }
+        });
+
+        // initial progress fetch to reflect any server state
+        fetchProgress();
     </script>
 </body>
 </html>
