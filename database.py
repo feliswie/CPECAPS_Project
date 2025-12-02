@@ -77,3 +77,45 @@ def get_all_data():
     df = pd.read_sql('SELECT * FROM telemetry', conn)
     conn.close()
     return df
+
+# ... existing imports and code ...
+
+def get_dashboard_alerts():
+    """
+    Fetch data and categorize devices based on inactivity.
+    Urgent = Inactive > 7 days (Client Request)
+    Soft = Inactive > 3 days (Proactive Watchlist)
+    """
+    df = get_all_data()
+    
+    # 1. Convert date string to datetime objects for calculation
+    df['Last_Sighted_Date'] = pd.to_datetime(df['Last_Sighted_Date'], errors='coerce')
+    
+    # 2. Remove rows where date is invalid
+    df = df.dropna(subset=['Last_Sighted_Date'])
+    
+    now = pd.Timestamp.now()
+    
+    alerts = {
+        "urgent": [],
+        "soft": []
+    }
+
+    # 3. Iterate and classify
+    for _, row in df.iterrows():
+        delta = now - row['Last_Sighted_Date']
+        days_inactive = delta.days
+        
+        device_data = {
+            "Device_ID": row['Device_ID'],
+            "Last_Sighted": row['Last_Sighted_Date'].strftime('%Y-%m-%d'),
+            "Days_Inactive": days_inactive,
+            "Location": row['Last_Sighted_Location']
+        }
+
+        if days_inactive >= 7:
+            alerts["urgent"].append(device_data)
+        elif days_inactive >= 3:
+            alerts["soft"].append(device_data)
+            
+    return alerts

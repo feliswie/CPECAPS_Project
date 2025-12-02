@@ -9,6 +9,9 @@ from database import init_db, update_or_insert_data, get_all_data
 import sqlite3
 from workbook_consolidator import PipelineError, run_workbook_pipeline
 
+from database import init_db, update_or_insert_data, get_all_data, get_dashboard_alerts
+from email_alerts import send_alert
+
 app = Flask(__name__)
 
 # Initialize database on startup
@@ -227,8 +230,37 @@ def dashboard():
 
 @app.route('/alerts')
 def alerts():
-    """Alerts placeholder page; supply minimal context to render the template."""
-    return render_template('pages/alerts.html', alerts={"soft": [], "urgent": []}, devices=[])
+    """Render the alerts page with real calculated data."""
+    # Get the processed alerts
+    alert_data = get_dashboard_alerts()
+    
+    # Get counts for the dashboard cards
+    stats = {
+        "urgent_count": len(alert_data['urgent']),
+        "soft_count": len(alert_data['soft'])
+    }
+    
+    # Render template with data
+    return render_template('pages/alerts.html', alerts=alert_data, stats=stats)
+
+@app.route('/send_alert_email', methods=['POST'])
+def trigger_email():
+    """Button trigger to send email report."""
+    alert_data = get_dashboard_alerts()
+    
+    # Extract just the IDs for the email function
+    urgent_devices = [d['Device_ID'] for d in alert_data['urgent']]
+    
+    if not urgent_devices:
+        return jsonify({"message": "No urgent alerts to report.", "status": "info"})
+        
+    # Call your existing email_alerts.py function
+    result = send_alert(urgent_devices)
+    
+    if result.get("ok"):
+        return jsonify({"message": "Email sent successfully!", "status": "success"})
+    else:
+        return jsonify({"message": f"Error: {result.get('msg')}", "status": "error"}), 500
 
 @app.route('/data')
 def data():
