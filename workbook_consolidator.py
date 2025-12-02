@@ -33,7 +33,7 @@ def run_workbook_pipeline(
     phase_two_context = _phase_two_merge_rep(rep_wb, main_wb, progress_callback)
     _phase_three_update_main(main_wb, phase_two_context, progress_callback)
 
-    _report(progress_callback, 4, status="done", percent=100, message="Phase 4: Completed, ready for human review.")
+    _report(progress_callback, 4, status="done", percent=100, message="Almost done...")
 
     output = BytesIO()
     main_wb.save(output)
@@ -53,7 +53,7 @@ def _phase_one_normalize_dms(dms_wb, main_wb, progress_callback):
     data_rows = list(sheet.iter_rows(min_row=header_row + 1, max_row=sheet.max_row, max_col=sheet.max_column, values_only=True))
     total = len(data_rows)
     _report(progress_callback, 1, status='running', total_rows=total, processed_rows=0,
-            message='Phase 1: Normalizing Device_ID values…')
+            message='Normalizing Device_ID values…')
 
     dms_sheet_main = main_wb['DMS Dump'] if 'DMS Dump' in main_wb.sheetnames else main_wb.create_sheet(title='DMS Dump')
 
@@ -77,7 +77,7 @@ def _phase_one_normalize_dms(dms_wb, main_wb, progress_callback):
         dms_sheet_main.append(normalized_row)
         if idx % 50 == 0 or idx == total:
             _report(progress_callback, 1, processed_rows=idx, total_rows=total,
-                    message=f"Phase 1: DMS normalization – {idx:,} / {total:,} rows")
+                    message=f"DMS normalization – {idx:,} / {total:,} rows")
 
     _report(progress_callback, 1, status='done', processed_rows=total, total_rows=total,
             message='Phase 1 complete – DMS Dump sheet refreshed inside MAIN.')
@@ -121,7 +121,7 @@ def _phase_two_merge_rep(rep_wb, main_wb, progress_callback):
 
     total = len(rep_rows)
     _report(progress_callback, 2, status='running', processed_rows=0, total_rows=total,
-            message='Phase 2: Writing repJourney data into MAIN month sheet…')
+            message='Writing repJourney data into MAIN month sheet…')
 
     latest_date = None
     for row in rep_rows:
@@ -163,7 +163,7 @@ def _phase_two_merge_rep(rep_wb, main_wb, progress_callback):
             month_sheet.cell(row=target_row, column=col_idx, value=row.get(header))
         if (row_idx + 1) % 50 == 0 or (row_idx + 1) == total:
             _report(progress_callback, 2, processed_rows=row_idx + 1, total_rows=total,
-                    message=f"Phase 2: repJourney merge – {row_idx + 1:,} / {total:,} rows")
+                    message=f"repJourney merge – {row_idx + 1:,} / {total:,} rows")
 
     if original_data_count > len(rep_rows):
         rows_to_remove = original_data_count - len(rep_rows)
@@ -230,7 +230,7 @@ def _phase_three_update_main(main_wb, context, progress_callback):
         return
 
     _report(progress_callback, 3, status='running', processed_rows=0, total_rows=total_rows,
-            message='Phase 3: Updating MAIN last disarmed fields…')
+            message='Updating MAIN last disarmed fields…')
 
     for idx, row in enumerate(main_sheet.iter_rows(min_row=main_header_row + 1, max_row=main_sheet.max_row, values_only=False), start=1):
         device_value = row[main_device_col - 1].value
@@ -242,7 +242,7 @@ def _phase_three_update_main(main_wb, context, progress_callback):
                 row[last_area_col - 1].value = last_area
         if idx % 50 == 0 or idx == total_rows:
             _report(progress_callback, 3, processed_rows=idx, total_rows=total_rows,
-                    message=f"Phase 3: Updating MAIN last disarmed fields – {idx:,} / {total_rows:,} rows")
+                    message=f"Updating MAIN last disarmed fields – {idx:,} / {total_rows:,} rows")
 
     _report(progress_callback, 3, status='done', processed_rows=total_rows, total_rows=total_rows,
             message='Phase 3 complete – MAIN sheet enriched with disarm details.')

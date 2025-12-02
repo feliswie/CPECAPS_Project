@@ -23,14 +23,14 @@
         main.pipeline-page { max-width:1200px; margin:32px auto 72px; padding:0 24px 48px; display:flex; flex-direction:column; gap:32px; }
         .page-heading h1 { margin:0; font-size:clamp(1.8rem, 3vw, 2.6rem); font-weight:600; }
         .page-heading p { margin:8px 0 0; color:var(--gray-500); max-width:720px; }
-        .flow-grid { display:grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap:24px; align-items:start; }
+        .flow-grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap:24px; align-items:start; }
         .flow-column { display:flex; flex-direction:column; gap:18px; }
         .upload-card { background:#fff; border-radius:18px; padding:20px 22px; border:1px solid var(--gray-200); box-shadow:0 8px 28px rgba(15,23,42,0.05); }
         .upload-card h3 { margin:0 0 6px; font-size:1.05rem; font-weight:600; }
         .upload-card p { margin:0 0 14px; color:var(--gray-500); font-size:0.92rem; }
-    .upload-box { border:2px dashed var(--blue-500); border-radius:14px; padding:18px; text-align:center; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:background 0.2s,border-color 0.2s, box-shadow 0.2s; }
-    .upload-box:hover { background:#eff6ff; border-color:var(--blue-600); }
-    .upload-box.drag-over { background:#dbeafe; border-color:var(--blue-600); box-shadow:0 0 0 3px rgba(37,99,235,.2) inset; }
+        .upload-box { border:2px dashed var(--blue-500); border-radius:14px; padding:18px; text-align:center; justify-content: center; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:background 0.2s,border-color 0.2s, box-shadow 0.2s; min-height:300px}
+        .upload-box:hover { background:#eff6ff; border-color:var(--blue-600); }
+        .upload-box.drag-over { background:#dbeafe; border-color:var(--blue-600); box-shadow:0 0 0 3px rgba(37,99,235,.2) inset; }
         .upload-box input[type="file"] { display:none; }
         .upload-box span { font-weight:600; color:var(--blue-600); }
         .file-meta { margin-top:8px; font-size:0.9rem; color:var(--gray-500); display:flex; align-items:center; gap:6px; }
@@ -38,7 +38,9 @@
         .status-dot.ready { background:var(--success); }
         .status-dot.waiting { background:var(--gray-300); }
         .status-dot.error { background:var(--error); }
-        .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content: center; }
+    .actions.sides { justify-content:space-between; width:100%; }
+    .actions .left, .actions .right { display:flex; gap:12px; align-items:center; }
         button.primary { background:var(--blue-500); border:none; border-radius:999px; padding:14px 28px; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; transition:transform .2s, background .2s, opacity .2s; box-shadow:0 10px 20px rgba(37,99,235,.25); }
         button.primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
         button.primary:not(:disabled):hover { background:var(--blue-600); transform:translateY(-1px); }
@@ -60,7 +62,8 @@
         .phase-heading { display:flex; justify-content:space-between; gap:12px; font-weight:600; font-size:0.95rem; color:var(--gray-700); }
         .phase-text { margin:6px 0 10px; color:var(--gray-500); font-size:0.9rem; }
         .progress-bar { width:100%; height:8px; background:var(--gray-200); border-radius:999px; overflow:hidden; }
-        .progress-fill { height:100%; background:linear-gradient(90deg, var(--blue-500), #34d399); width:0%; transition:width .3s ease; }
+    .progress-fill { height:100%; background:linear-gradient(90deg, var(--blue-500), #34d399); width:0%; transition:width .4s ease; }
+    .phase-marker > span { display:block; }
         .phase-row.error { border-color:var(--error); background:#fef2f2; }
         .phase-row.completed { border-color:var(--success); }
         .phase-percent { color:var(--gray-500); font-size:0.85rem; }
@@ -75,94 +78,64 @@
     {% include 'partials/header.html' %}
     <main class="pipeline-page">
         <section class="page-heading">
-            <h1>Field Workbook Consolidator</h1>
-            <p>Upload the latest DMS dump, repJourney export, and MAIN inventory workbook. We will normalize, merge, and enrich everything for you while you watch the four pipeline phases progress.</p>
+            <h1>Ascent Workbook Consolidator</h1>
+            <p>
+                Upload the latest DMS and repJourney dumps.<br>
+                The program will try to process the data and merge them with the MAIN xlsx.
+            </p>
         </section>
 
         <section class="flow-grid">
-            <div class="flow-column">
                 <article class="upload-card" data-upload="dms">
                     <h3>Upload DMS Dump</h3>
-                    <p>Device roster exported from DMS. We use it to normalize Device IDs.</p>
                     <label class="upload-box">
                         <input type="file" id="dms-input" accept=".xls,.xlsx" />
-                        <span>Select or drag a workbook</span>
-                        <small>.xls / .xlsx • Sheet should include <strong>Device_ID</strong></small>
+                        <span>Select or drag a file here</span>
+                        <small>This sheet should contain the column named <b>Device_ID</b></small>
                     </label>
                     <div class="file-meta"><span class="status-dot waiting"></span><span data-file-label="dms">Waiting for file</span></div>
                 </article>
 
                 <article class="upload-card" data-upload="rep">
                     <h3>Upload repJourney Dump</h3>
-                    <p>Journey export that contains <strong>Begin Journey Date</strong> and movement history.</p>
                     <label class="upload-box">
                         <input type="file" id="rep-input" accept=".xls,.xlsx" />
-                        <span>Add repJourney workbook</span>
-                        <small>Ensure headers include Begin Journey Date & Destination</small>
+                        <span>Select or drag a file here</span>
+                        <small>This sheet should contain the columns named <b>Begin Journey Date</b> & <b>Destination</b></small>
                     </label>
                     <div class="file-meta"><span class="status-dot waiting"></span><span data-file-label="rep">Waiting for file</span></div>
                 </article>
 
                 <article class="upload-card" data-upload="main">
                     <h3>Upload Main Inventory</h3>
-                    <p>The master workbook that holds <strong>DMS Dump</strong>, month sheets, and the MAIN sheet.</p>
                     <label class="upload-box">
                         <input type="file" id="main-input" accept=".xls,.xlsx" />
-                        <span>Attach MAIN workbook</span>
-                        <small>Must include sheets: DMS Dump, MMMYYYY, and MAIN</small>
+                        <span>Select or drag a file here</span>
+                        <small>This workbook should contain the sheets named <b>MAIN</b>, <b>DMS Dump</b>, and the <b>repJourney dump</b></small>
                     </label>
                     <div class="file-meta"><span class="status-dot waiting"></span><span data-file-label="main">Waiting for file</span></div>
                 </article>
 
-                <div class="actions">
-                    <button class="primary" id="process-btn" disabled>Process &amp; Generate File</button>
-                    <p class="helper" id="helper-text">All three files are required to start processing.</p>
-                </div>
-                <p class="status-message" id="status-message"></p>
-            </div>
-
-            <aside class="result-card">
-                <div class="result-icon">✔</div>
-                <h3>Your consolidated file is ready</h3>
-                <p id="result-subtext">Waiting for processing to begin.</p>
-                <button class="secondary" id="download-btn" disabled>Download</button>
-            </aside>
         </section>
-
         <section class="progress-panel">
             <h2>Processing status</h2>
             <div class="phase-list">
-                <article class="phase-row" data-phase="1">
+                <article class="phase-row" id="single-phase">
                     <div class="phase-heading">
-                        <span>Phase 1: DMS normalization</span>
-                        <span class="phase-percent" data-phase-percent="1">0%</span>
+                        <span id="single-phase-label">Waiting to begin</span>
+                        <span class="phase-percent" id="single-phase-percent">0%</span>
                     </div>
-                    <p class="phase-text" data-phase-text="1">Waiting to begin.</p>
-                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="1"></div></div>
-                </article>
-                <article class="phase-row" data-phase="2">
-                    <div class="phase-heading">
-                        <span>Phase 2: repJourney merge</span>
-                        <span class="phase-percent" data-phase-percent="2">0%</span>
+                    <p class="phase-text" id="single-phase-text">Waiting to begin.</p>
+                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="single"></div></div>
+                    <div class="actions sides" style="padding-top: 16px;">
+                        <div class="left">
+                            <button class="primary" id="process-btn" disabled>Process &amp; Generate File</button>
+                        </div>
+                        <div class="right">
+                            <button class="primary" id="download-btn" disabled>Download</button>
+                        </div>
                     </div>
-                    <p class="phase-text" data-phase-text="2">Waiting to begin.</p>
-                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="2"></div></div>
-                </article>
-                <article class="phase-row" data-phase="3">
-                    <div class="phase-heading">
-                        <span>Phase 3: MAIN enrichment</span>
-                        <span class="phase-percent" data-phase-percent="3">0%</span>
-                    </div>
-                    <p class="phase-text" data-phase-text="3">Waiting to begin.</p>
-                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="3"></div></div>
-                </article>
-                <article class="phase-row" data-phase="4">
-                    <div class="phase-heading">
-                        <span>Phase 4: Completed, ready for human review</span>
-                        <span class="phase-percent" data-phase-percent="4">0%</span>
-                    </div>
-                    <p class="phase-text" data-phase-text="4">Waiting to begin.</p>
-                    <div class="progress-bar"><div class="progress-fill" data-phase-progress="4"></div></div>
+                    <p class="status-message" id="status-message"></p>
                 </article>
             </div>
         </section>
@@ -180,16 +153,32 @@
         const helperText = document.getElementById('helper-text');
         const resultSubtext = document.getElementById('result-subtext');
         const PHASE_LABELS = {
-            1: 'Phase 1: DMS normalization',
-            2: 'Phase 2: repJourney merge',
-            3: 'Phase 3: MAIN enrichment',
-            4: 'Phase 4: Completed, ready for human review'
+            1: 'Preparing data...',
+            2: 'Merging repJourney data...',
+            3: 'Importing to main workbook...',
+            4: 'Thanks for waiting!'
+        };
+        const FINAL_LABEL = 'Finished!';
+        const FINAL_MESSAGE = 'Thank you for waiting! Make sure to double check the contents of the file.';
+        const animationConfig = {
+            duration: 120000,
+            maxPercent: 99,
+            easingPower: 0.65
         };
 
         const state = {
             files: { dms: null, rep: null, main: null },
             processing: false,
-            polling: null
+            polling: null,
+            animation: null,
+            visuals: {
+                label: 'Waiting to begin',
+                message: 'Waiting to begin.',
+                processed: 0,
+                total: 0,
+                activePhase: '1',
+                status: 'pending'
+            }
         };
 
         Object.entries(fileInputs).forEach(([key, input]) => {
@@ -246,7 +235,7 @@
         function evaluateReadyState(){
             const ready = state.files.dms && state.files.rep && state.files.main;
             processBtn.disabled = !ready || state.processing;
-            helperText.textContent = ready ? 'All inputs look good. Click Process to begin.' : 'All three files are required to start processing.';
+            if(helperText) helperText.textContent = ready ? 'All inputs look good. Click Process to begin.' : 'All three files are required to start processing.';
         }
 
         function setupDragAndDrop(dropZone, key){
@@ -291,10 +280,14 @@
             formData.append('rep_file', state.files.rep);
             formData.append('main_file', state.files.main);
 
+            // Reset the visible progress UI when the user starts a new run
+            resetProgressUI();
+            startProgressAnimation();
+
             setProcessingState(true);
             statusMessage.textContent = 'Uploading files and starting the pipeline…';
             statusMessage.className = 'status-message';
-            resultSubtext.textContent = 'Crunching data…';
+            if(resultSubtext) resultSubtext.textContent = 'Crunching data…';
             downloadBtn.disabled = true;
 
             try {
@@ -310,6 +303,26 @@
                 statusMessage.textContent = err.message;
                 statusMessage.className = 'status-message error';
             }
+        }
+
+        function resetProgressUI(){
+            stopProgressAnimation(true);
+            state.visuals = {
+                label: 'Initializing…',
+                message: 'Preparing to run pipeline...',
+                processed: 0,
+                total: 0,
+                activePhase: '1',
+                status: 'pending'
+            };
+
+            const phaseRow = document.getElementById('single-phase');
+            if(phaseRow){
+                phaseRow.classList.remove('completed');
+                phaseRow.classList.remove('error');
+            }
+
+            applyProgressVisuals(0);
         }
 
         function setProcessingState(isProcessing){
@@ -332,17 +345,53 @@
                 if(data.overall_status === 'completed'){
                     clearInterval(state.polling);
                     setProcessingState(false);
-                    downloadBtn.disabled = false;
-                    resultSubtext.textContent = 'Ready! Download the refreshed MAIN workbook.';
-                    statusMessage.textContent = 'Processing complete. Download is ready.';
-                    statusMessage.className = 'status-message success';
+                    if(data.download_ready){
+                        downloadBtn.disabled = false;
+                        if(resultSubtext) resultSubtext.textContent = 'Ready! Download the refreshed MAIN workbook.';
+                        statusMessage.textContent = 'Processing complete. Download is ready.';
+                        statusMessage.className = 'status-message success';
+                        state.visuals = {
+                            ...state.visuals,
+                            label: FINAL_LABEL,
+                            message: FINAL_MESSAGE,
+                            activePhase: '4',
+                            status: 'done'
+                        };
+                        if(state.animation){
+                            state.animation.actualPercent = 100;
+                            state.animation.displayPercent = 100;
+                        }
+                        completeProgressAnimation();
+                        applyProgressVisuals(100);
+                    } else {
+                        downloadBtn.disabled = true;
+                        statusMessage.textContent = 'Finalizing the output file…';
+                        statusMessage.className = 'status-message';
+                        if(resultSubtext) resultSubtext.textContent = 'Wrapping up the workbook—hang tight.';
+                        state.visuals = {
+                            ...state.visuals,
+                            label: PHASE_LABELS['4'],
+                            message: state.visuals.message || 'Finalizing things…',
+                            activePhase: '4',
+                            status: 'finalizing'
+                        };
+                        const fallbackPercent = Math.min(state.animation?.displayPercent ?? state.animation?.actualPercent ?? animationConfig.maxPercent, animationConfig.maxPercent);
+                        if(state.animation){
+                            state.animation.actualPercent = fallbackPercent;
+                            state.animation.displayPercent = fallbackPercent;
+                        }
+                        applyProgressVisuals(fallbackPercent);
+                    }
                 } else if(data.overall_status === 'error'){
                     clearInterval(state.polling);
                     setProcessingState(false);
                     downloadBtn.disabled = true;
                     statusMessage.textContent = data.error || 'Processing failed. Check phase details.';
                     statusMessage.className = 'status-message error';
-                    resultSubtext.textContent = 'Resolve the highlighted errors to continue.';
+                    if(resultSubtext) resultSubtext.textContent = 'Resolve the highlighted errors to continue.';
+                    state.visuals.message = data.error || 'Processing failed. Check phase details.';
+                    applyProgressVisuals(state.animation?.actualPercent ?? 0);
+                    stopProgressAnimation(false, true);
                 }
             } catch (err){
                 console.error('Progress polling failed', err);
@@ -350,26 +399,141 @@
         }
 
         function updateProgressUI(data){
-            Object.keys(PHASE_LABELS).forEach(key => {
-                const row = document.querySelector(`.phase-row[data-phase="${key}"]`);
-                const percentLabel = document.querySelector(`[data-phase-percent="${key}"]`);
-                const textLabel = document.querySelector(`[data-phase-text="${key}"]`);
-                const bar = document.querySelector(`[data-phase-progress="${key}"]`);
-                const phaseState = data?.phases?.[key] || {};
-                const pct = Math.round(phaseState.percent || 0);
-                if(percentLabel) percentLabel.textContent = `${pct}%`;
-                if(bar) bar.style.width = `${pct}%`;
-                const total = phaseState.total_rows ?? phaseState.total ?? 0;
-                const processed = phaseState.processed_rows ?? phaseState.processed ?? 0;
-                const detail = phaseState.message || `${PHASE_LABELS[key]} – ${pct}% (${processed.toLocaleString()} / ${total.toLocaleString()} rows)`;
-                if(textLabel) textLabel.textContent = detail;
-                if(row){
-                    row.classList.toggle('completed', phaseState.status === 'done');
-                    row.classList.toggle('error', phaseState.status === 'error');
-                }
-            });
+            const phases = data?.phases || {};
+            const keys = Object.keys(phases);
+            let active = keys.find(k => phases[k].status === 'running');
+            if(!active) active = keys.find(k => phases[k].status !== 'done');
+            if(!active) active = '4';
+
+            const phaseState = phases[active] || {};
+            const processed = phaseState.processed_rows ?? phaseState.processed ?? 0;
+            const total = phaseState.total_rows ?? phaseState.total ?? 0;
+            const pctRaw = Math.round((phaseState.percent !== undefined && phaseState.percent !== null)
+                ? phaseState.percent
+                : (total ? (processed / total * 100) : 0)
+            );
+            const downloadReady = Boolean(data?.download_ready);
+            const pct = Math.min(Math.max(pctRaw, 0), downloadReady ? 100 : animationConfig.maxPercent);
+            const label = PHASE_LABELS[active] || `Phase ${active}`;
+
+            state.visuals = {
+                label,
+                message: phaseState.message || null,
+                processed,
+                total,
+                activePhase: active,
+                status: phaseState.status || 'pending'
+            };
+
+            if(state.animation){
+                state.animation.actualPercent = pct;
+            }
+
+            const phaseRow = document.getElementById('single-phase');
+            if(phaseRow){
+                phaseRow.classList.toggle('completed', phaseState.status === 'done');
+                phaseRow.classList.toggle('error', phaseState.status === 'error');
+            }
+
+            const visualsPercent = state.animation?.displayPercent ?? state.animation?.actualPercent ?? pct;
+            applyProgressVisuals(visualsPercent);
+
             if(data?.download_ready){
                 downloadBtn.disabled = false;
+            }
+        }
+
+        function startProgressAnimation(){
+            stopProgressAnimation();
+            const startTime = performance.now();
+            state.animation = {
+                startTime,
+                displayPercent: 0,
+                actualPercent: 0,
+                raf: null,
+                completed: false
+            };
+
+            const step = (timestamp) => {
+                if(!state.animation || state.animation.completed) return;
+                const elapsed = timestamp - state.animation.startTime;
+                const progressRatio = Math.min(elapsed / animationConfig.duration, 1);
+                const eased = Math.pow(progressRatio, animationConfig.easingPower);
+                const animatedPercent = eased * animationConfig.maxPercent;
+                const actual = state.animation.actualPercent ?? 0;
+                const display = Math.max(animatedPercent, actual);
+                state.animation.displayPercent = Math.min(display, 100);
+                applyProgressVisuals(state.animation.displayPercent);
+
+                if(progressRatio < 1 && !state.animation.completed){
+                    state.animation.raf = requestAnimationFrame(step);
+                }
+            };
+            state.animation.raf = requestAnimationFrame(step);
+        }
+
+        function stopProgressAnimation(resetToZero = false, markError = false){
+            if(state.animation?.raf){
+                cancelAnimationFrame(state.animation.raf);
+            }
+            if(resetToZero){
+                applyProgressVisuals(0, markError);
+            } else if(state.animation){
+                const percent = markError ? Math.min(state.animation.actualPercent ?? 0, 100) : (state.animation.displayPercent ?? state.animation.actualPercent ?? 0);
+                applyProgressVisuals(percent, markError);
+            }
+            if(state.animation){
+                state.animation.completed = true;
+            }
+            state.animation = null;
+        }
+
+        function completeProgressAnimation(){
+            if(state.animation?.raf){
+                cancelAnimationFrame(state.animation.raf);
+            }
+            if(!state.animation){
+                state.animation = {
+                    completed: true,
+                    displayPercent: 100,
+                    actualPercent: 100
+                };
+            } else {
+                state.animation.completed = true;
+                state.animation.displayPercent = 100;
+                state.animation.actualPercent = 100;
+            }
+            applyProgressVisuals(100);
+            state.animation = null;
+        }
+
+        function applyProgressVisuals(percent){
+            const singleLabel = document.getElementById('single-phase-label');
+            const singlePercent = document.getElementById('single-phase-percent');
+            const singleText = document.getElementById('single-phase-text');
+            const bar = document.querySelector(`[data-phase-progress="single"]`);
+
+            const rounded = Math.min(100, Math.max(Math.round(percent), 0));
+
+            if(singleLabel && state.visuals?.label){
+                singleLabel.textContent = state.visuals.label;
+            }
+            if(singlePercent){
+                singlePercent.textContent = `${rounded}%`;
+            }
+            if(bar){
+                bar.style.width = `${rounded}%`;
+            }
+
+            if(singleText){
+                if(state.visuals?.message){
+                    singleText.textContent = state.visuals.message;
+                } else {
+                    const processed = state.visuals?.processed ?? 0;
+                    const total = state.visuals?.total ?? 0;
+                    const rowsText = total ? ` (${processed.toLocaleString()} / ${total.toLocaleString()} rows)` : '';
+                    singleText.textContent = `${state.visuals?.label || 'Processing…'} – ${rounded}%${rowsText}`;
+                }
             }
         }
 

@@ -1,16 +1,10 @@
-import copy
-from datetime import datetime
-from io import BytesIO
-from threading import Lock, Thread
-
 from flask import Flask, render_template, request, jsonify, send_file
 from excel_handler import process_excel_file
 from database import init_db, update_or_insert_data, get_all_data
+from workbook_consolidator import run_workbook_pipeline
 import sqlite3
-from workbook_consolidator import PipelineError, run_workbook_pipeline
-
-from database import init_db, update_or_insert_data, get_all_data, get_dashboard_alerts
-from email_alerts import send_alert
+import threading
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -18,98 +12,121 @@ app = Flask(__name__)
 init_db()
 
 
+# ---------------------------------------------------------------------------
+# Progress tracking helpers for consolidation pipeline
+# ---------------------------------------------------------------------------
+
 PHASE_LABELS = {
-    "1": "Phase 1: DMS normalization",
-    "2": "Phase 2: repJourney merge",
-    "3": "Phase 3: MAIN enrichment",
-    "4": "Phase 4: Completed, ready for human review",
+    '1': 'This takes approximately 2 minutes',
+    '2': 'Merging repJourney data...',
+    '3': 'Importing to main workbook...',
+    '4': 'Make sure to double check for accuracy!',
 }
 
-progress_lock = Lock()
-pipeline_state = {}
-processed_workbook_bytes: bytes | None = None
+progress_lock = threading.Lock()
+progress_state = {}
+result_payload = {'buffer': None, 'filename': None}
 
 
-def _phase_template(label: str) -> dict:
+def _make_phase_state(label: str) -> dict:
     return {
-        "label": label,
-        "status": "pending",
-        "percent": 0,
-        "processed_rows": 0,
-        "total_rows": 0,
-        "message": "Waiting to begin.",
+        'status': 'pending',
+        'message': label,
+        'percent': 0,
+        'processed_rows': 0,
+        'total_rows': 0,
     }
 
 
-def _default_phases() -> dict:
-    return {key: _phase_template(label) for key, label in PHASE_LABELS.items()}
+def _reset_progress_state() -> None:
+    with progress_lock:
+        progress_state['phases'] = {key: _make_phase_state(label) for key, label in PHASE_LABELS.items()}
+        progress_state['overall_status'] = 'idle'
+        progress_state['download_ready'] = False
+        progress_state['error'] = None
+        result_payload['buffer'] = None
+        result_payload['filename'] = None
 
 
-def _reset_pipeline_state():
-    global processed_workbook_bytes
-    pipeline_state.clear()
-    pipeline_state.update(
-        {
-            "overall_status": "idle",
-            "download_ready": False,
-            "error": None,
-            "started_at": None,
-            "finished_at": None,
-            "filename": None,
-            "phases": _default_phases(),
+def _snapshot_progress() -> dict:
+    with progress_lock:
+        phases = {key: dict(value) for key, value in progress_state.get('phases', {}).items()}
+        return {
+            'overall_status': progress_state.get('overall_status', 'idle'),
+            'download_ready': progress_state.get('download_ready', False),
+            'error': progress_state.get('error'),
+            'phases': phases,
         }
-    )
-    processed_workbook_bytes = None
 
 
-def _update_progress(phase: int, **payload):
+def _update_phase_state(phase: int, **payload) -> None:
     phase_key = str(phase)
     with progress_lock:
-        phase_state = pipeline_state.get("phases", {}).get(phase_key)
-        if not phase_state:
-            return
-        status = payload.get("status")
-        if status:
-            phase_state["status"] = status
-            if status == "running" and pipeline_state.get("overall_status") not in {"error", "completed"}:
-                pipeline_state["overall_status"] = "running"
-            if status == "error":
-                pipeline_state["overall_status"] = "error"
-        total = payload.get("total_rows") or payload.get("total")
-        if total is not None:
-            phase_state["total_rows"] = int(total)
-        processed = payload.get("processed_rows") or payload.get("processed")
+        phases = progress_state.setdefault('phases', {})
+        phase_state = phases.setdefault(phase_key, _make_phase_state(PHASE_LABELS.get(phase_key, f'Phase {phase_key}')))
+
+        # Core fields
+        if 'message' in payload and payload['message']:
+            phase_state['message'] = payload['message']
+
+        processed = payload.get('processed_rows')
+        if processed is None and 'processed' in payload:
+            processed = payload['processed']
         if processed is not None:
-            phase_state["processed_rows"] = int(processed)
-        percent = payload.get("percent")
-        total_for_percent = phase_state.get("total_rows") or total or 0
-        if total_for_percent and processed is not None:
-            fraction = min(processed, total_for_percent) / total_for_percent
-            phase_state["percent"] = round(fraction * 100, 2)
-        elif percent is not None:
-            phase_state["percent"] = percent
-        message = payload.get("message")
-        if message:
-            phase_state["message"] = message
+            phase_state['processed_rows'] = processed
+
+        total = payload.get('total_rows')
+        if total is None and 'total' in payload:
+            total = payload['total']
+        if total is not None:
+            phase_state['total_rows'] = total
+
+        percent = payload.get('percent')
+        if percent is not None:
+            phase_state['percent'] = percent
+        elif phase_state['total_rows']:
+            phase_state['percent'] = round((phase_state['processed_rows'] / phase_state['total_rows']) * 100)
+
+        status = payload.get('status')
+        if status:
+            phase_state['status'] = status
+            if status == 'running':
+                progress_state['overall_status'] = 'running'
+            elif status == 'error':
+                progress_state['overall_status'] = 'error'
+                progress_state['error'] = payload.get('message', 'An error occurred during processing.')
+            elif status == 'done' and phase == 4:
+                phase_state['percent'] = phase_state.get('percent') or 100
 
 
-def _handle_pipeline_failure(exc: Exception):
-    message = str(exc)
-    global processed_workbook_bytes
-    with progress_lock:
-        pipeline_state["overall_status"] = "error"
-        pipeline_state["error"] = message
-        pipeline_state["download_ready"] = False
-        pipeline_state["finished_at"] = datetime.utcnow().isoformat() + "Z"
-        processed_workbook_bytes = None
-        if isinstance(exc, PipelineError) and exc.phase:
-            phase_key = str(exc.phase)
-            if phase_key in pipeline_state["phases"]:
-                pipeline_state["phases"][phase_key]["status"] = "error"
-                pipeline_state["phases"][phase_key]["message"] = message
+def _pipeline_progress_callback(phase, **payload):
+    _update_phase_state(phase, **payload)
 
 
-_reset_pipeline_state()
+def _run_pipeline_async(dms_bytes: bytes, rep_bytes: bytes, main_bytes: bytes) -> None:
+    try:
+        buffer, filename = run_workbook_pipeline(dms_bytes, rep_bytes, main_bytes, _pipeline_progress_callback)
+        with progress_lock:
+            result_payload['buffer'] = buffer
+            result_payload['filename'] = filename
+            progress_state['download_ready'] = True
+            if progress_state.get('overall_status') != 'error':
+                progress_state['overall_status'] = 'completed'
+            # Ensure phase 4 is marked done if callback didn't already
+            phase_four = progress_state['phases'].setdefault('4', _make_phase_state(PHASE_LABELS['4']))
+            phase_four.update({'status': 'done', 'percent': 100, 'message': PHASE_LABELS['4']})
+    except Exception as exc:  # broad catch to capture any pipeline failure
+        with progress_lock:
+            progress_state['overall_status'] = 'error'
+            progress_state['error'] = str(exc)
+            phase_four = progress_state['phases'].setdefault('4', _make_phase_state(PHASE_LABELS['4']))
+            phase_four.update({'status': 'error', 'message': str(exc)})
+            result_payload['buffer'] = None
+            result_payload['filename'] = None
+
+
+# Initialize default progress state on startup
+_reset_progress_state()
 
 @app.route('/')
 def index():
@@ -136,86 +153,52 @@ def upload():
 
 
 @app.route('/process', methods=['POST'])
-def start_processing():
-    """Start the four-phase workbook pipeline in a background thread."""
+def process_pipeline():
+    """Start the consolidation pipeline asynchronously."""
+    dms_file = request.files.get('dms_file')
+    rep_file = request.files.get('rep_file')
+    main_file = request.files.get('main_file')
 
-    required_fields = {
-        'dms_file': request.files.get('dms_file'),
-        'rep_file': request.files.get('rep_file'),
-        'main_file': request.files.get('main_file'),
-    }
-    missing = [key for key, file in required_fields.items() if file is None]
-    if missing:
-        return jsonify({"error": f"Missing uploads: {', '.join(missing)}"}), 400
+    if not dms_file or not rep_file or not main_file:
+        return jsonify({'error': 'All three files (dms_file, rep_file, main_file) are required.'}), 400
 
-    file_bytes = {}
-    for key, storage in required_fields.items():
-        content = storage.read()
-        if not content:
-            return jsonify({"error": f"Upload '{key}' is empty."}), 400
-        file_bytes[key] = content
+    dms_bytes = dms_file.read()
+    rep_bytes = rep_file.read()
+    main_bytes = main_file.read()
 
+    _reset_progress_state()
     with progress_lock:
-        if pipeline_state.get("overall_status") == "running":
-            return jsonify({"error": "A processing job is already running."}), 409
-        _reset_pipeline_state()
-        pipeline_state["overall_status"] = "running"
-        pipeline_state["started_at"] = datetime.utcnow().isoformat() + "Z"
+        progress_state['overall_status'] = 'running'
 
-    def worker():
-        global processed_workbook_bytes
-        try:
-            output_buffer, filename = run_workbook_pipeline(
-                file_bytes['dms_file'],
-                file_bytes['rep_file'],
-                file_bytes['main_file'],
-                progress_callback=_update_progress,
-            )
-            with progress_lock:
-                processed_workbook_bytes = output_buffer.getvalue()
-                pipeline_state["download_ready"] = True
-                pipeline_state["overall_status"] = "completed"
-                pipeline_state["finished_at"] = datetime.utcnow().isoformat() + "Z"
-                pipeline_state["filename"] = filename
-                phase_four = pipeline_state["phases"].get("4")
-                if phase_four:
-                    phase_four.update(
-                        {
-                            "status": "done",
-                            "percent": 100,
-                            "processed_rows": 1,
-                            "total_rows": 1,
-                            "message": PHASE_LABELS["4"],
-                        }
-                    )
-        except Exception as exc:
-            _handle_pipeline_failure(exc)
+    worker = threading.Thread(target=_run_pipeline_async, args=(dms_bytes, rep_bytes, main_bytes), daemon=True)
+    worker.start()
 
-    Thread(target=worker, daemon=True).start()
-    return jsonify({"message": "Processing started"})
+    return jsonify({'message': 'Processing started.'}), 202
 
 
 @app.route('/progress')
-def get_progress():
-    with progress_lock:
-        snapshot = copy.deepcopy(pipeline_state)
-    return jsonify(snapshot)
+def progress():
+    """Return the current progress snapshot."""
+    return jsonify(_snapshot_progress())
 
 
 @app.route('/download')
-def download_processed_workbook():
+def download():
+    """Stream the processed workbook once ready."""
     with progress_lock:
-        if not pipeline_state.get("download_ready") or not processed_workbook_bytes:
-            return jsonify({"error": "No processed workbook is ready yet."}), 400
-        filename = pipeline_state.get("filename") or "Consolidated_MAIN.xlsx"
-        payload = processed_workbook_bytes
-    buffer = BytesIO(payload)
+        ready = progress_state.get('download_ready', False)
+        buffer = result_payload.get('buffer')
+        filename = result_payload.get('filename') or 'Consolidated_MAIN.xlsx'
+
+    if not ready or buffer is None:
+        return jsonify({'error': 'Processed file is not ready yet.'}), 400
+
     buffer.seek(0)
     return send_file(
         buffer,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
         download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
 
 @app.route('/raw_data')
@@ -230,37 +213,8 @@ def dashboard():
 
 @app.route('/alerts')
 def alerts():
-    """Render the alerts page with real calculated data."""
-    # Get the processed alerts
-    alert_data = get_dashboard_alerts()
-    
-    # Get counts for the dashboard cards
-    stats = {
-        "urgent_count": len(alert_data['urgent']),
-        "soft_count": len(alert_data['soft'])
-    }
-    
-    # Render template with data
-    return render_template('pages/alerts.html', alerts=alert_data, stats=stats)
-
-@app.route('/send_alert_email', methods=['POST'])
-def trigger_email():
-    """Button trigger to send email report."""
-    alert_data = get_dashboard_alerts()
-    
-    # Extract just the IDs for the email function
-    urgent_devices = [d['Device_ID'] for d in alert_data['urgent']]
-    
-    if not urgent_devices:
-        return jsonify({"message": "No urgent alerts to report.", "status": "info"})
-        
-    # Call your existing email_alerts.py function
-    result = send_alert(urgent_devices)
-    
-    if result.get("ok"):
-        return jsonify({"message": "Email sent successfully!", "status": "success"})
-    else:
-        return jsonify({"message": f"Error: {result.get('msg')}", "status": "error"}), 500
+    """Alerts placeholder page; supply minimal context to render the template."""
+    return render_template('pages/alerts.html', alerts={"soft": [], "urgent": []}, devices=[])
 
 @app.route('/data')
 def data():
