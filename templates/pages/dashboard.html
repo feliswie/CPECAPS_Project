@@ -5,35 +5,496 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Dashboard</title>
 	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 	<style>
-		.container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-		.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-		.card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-		.muted { color:#666; }
+		.container { max-width: 1400px; margin: 24px auto; padding: 0 16px; }
+		
+		.dashboard-header {
+			margin-bottom: 32px;
+		}
+		
+		.dashboard-header h1 {
+			font-size: 2rem;
+			margin-bottom: 8px;
+			color: #1a202c;
+		}
+		
+		.last-updated {
+			color: #718096;
+			font-size: 0.9rem;
+		}
+		
+		.stats-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+			gap: 16px;
+			margin-bottom: 32px;
+		}
+		
+		.stat-card {
+			background: #fff;
+			border-radius: 8px;
+			padding: 24px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+		
+		.stat-card:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(0,0,0,.12);
+		}
+		
+		.stat-card h3 {
+			font-size: 0.85rem;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #718096;
+			margin-bottom: 12px;
+			font-weight: 600;
+		}
+		
+		.stat-card .value {
+			font-size: 2.5rem;
+			font-weight: bold;
+			margin-bottom: 8px;
+		}
+		
+		.stat-card .change {
+			font-size: 0.85rem;
+			color: #718096;
+		}
+		
+		.stat-card.total .value { color: #667eea; }
+		.stat-card.active .value { color: #48bb78; }
+		.stat-card.warning .value { color: #ed8936; }
+		.stat-card.critical .value { color: #f56565; }
+		
+		.charts-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+			gap: 24px;
+			margin-bottom: 32px;
+		}
+		
+		.chart-card {
+			background: #fff;
+			border-radius: 8px;
+			padding: 24px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+		}
+		
+		.chart-card h2 {
+			font-size: 1.25rem;
+			margin-bottom: 20px;
+			color: #2d3748;
+		}
+		
+		.chart-container {
+			position: relative;
+			height: 300px;
+		}
+		
+		.alerts-section {
+			background: #fff;
+			border-radius: 8px;
+			padding: 24px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+		}
+		
+		.alerts-section h2 {
+			font-size: 1.25rem;
+			margin-bottom: 20px;
+			color: #2d3748;
+		}
+		
+		.alert-tabs {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 20px;
+			border-bottom: 2px solid #e2e8f0;
+		}
+		
+		.alert-tab {
+			padding: 12px 24px;
+			background: none;
+			border: none;
+			font-size: 0.95rem;
+			font-weight: 600;
+			color: #718096;
+			cursor: pointer;
+			border-bottom: 3px solid transparent;
+			transition: all 0.2s;
+		}
+		
+		.alert-tab.active {
+			color: #667eea;
+			border-bottom-color: #667eea;
+		}
+		
+		.alert-tab:hover {
+			color: #667eea;
+		}
+		
+		.alert-list {
+			max-height: 400px;
+			overflow-y: auto;
+		}
+		
+		.alert-item {
+			padding: 16px;
+			border-left: 4px solid #e2e8f0;
+			background: #f7fafc;
+			margin-bottom: 12px;
+			border-radius: 4px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		
+		.alert-item.urgent {
+			border-left-color: #f56565;
+			background: #fff5f5;
+		}
+		
+		.alert-item.soft {
+			border-left-color: #ed8936;
+			background: #fffaf0;
+		}
+		
+		.alert-info h4 {
+			font-size: 1rem;
+			margin-bottom: 4px;
+			color: #2d3748;
+		}
+		
+		.alert-info p {
+			font-size: 0.85rem;
+			color: #718096;
+		}
+		
+		.alert-badge {
+			padding: 6px 12px;
+			border-radius: 4px;
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+		}
+		
+		.alert-badge.urgent {
+			background: #f56565;
+			color: white;
+		}
+		
+		.alert-badge.soft {
+			background: #ed8936;
+			color: white;
+		}
+		
+		.no-alerts {
+			text-align: center;
+			padding: 40px;
+			color: #718096;
+		}
+		
+		.loading {
+			text-align: center;
+			padding: 40px;
+			color: #718096;
+		}
+		
+		.error {
+			background: #fff5f5;
+			border: 1px solid #fc8181;
+			color: #c53030;
+			padding: 16px;
+			border-radius: 8px;
+			margin-bottom: 24px;
+		}
 	</style>
-	<script>
-		// Placeholder for future dashboard scripts
-	</script>
-	</head>
-<body>
+</head>
+<body style="margin: 0px">
 	{% include 'partials/header.html' %}
+	
 	<div class="container">
-		<h1>Dashboard</h1>
-		<p class="muted">Coming soon. Use the navigation to explore other pages.</p>
-		<div class="cards">
-			<div class="card">
+		<div class="dashboard-header">
+			<h1>Device Telemetry Dashboard</h1>
+			<p class="last-updated">Last updated: <span id="lastUpdate">Loading...</span></p>
+		</div>
+		
+		<div id="errorContainer"></div>
+		
+		<!-- Statistics Cards -->
+		<div class="stats-grid">
+			<div class="stat-card total">
 				<h3>Total Devices</h3>
-				<p class="muted">—</p>
+				<div class="value" id="totalDevices">—</div>
+				<div class="change">All tracked devices</div>
 			</div>
-			<div class="card">
-				<h3>Active Today</h3>
-				<p class="muted">—</p>
+			
+			<div class="stat-card active">
+				<h3>Active Devices</h3>
+				<div class="value" id="activeDevices">—</div>
+				<div class="change">Active in last 3 days</div>
 			</div>
-			<div class="card">
-				<h3>Alerts</h3>
-				<p class="muted">—</p>
+			
+			<div class="stat-card warning">
+				<h3>Soft Alerts</h3>
+				<div class="value" id="softAlerts">—</div>
+				<div class="change">Inactive 3-6 days</div>
+			</div>
+			
+			<div class="stat-card critical">
+				<h3>Urgent Alerts</h3>
+				<div class="value" id="urgentAlerts">—</div>
+				<div class="change">Inactive 7+ days</div>
+			</div>
+		</div>
+		
+		<!-- Charts -->
+		<div class="charts-grid">
+			<div class="chart-card">
+				<h2>Activity Status</h2>
+				<div class="chart-container">
+					<canvas id="statusChart"></canvas>
+				</div>
+			</div>
+			
+			<div class="chart-card">
+				<h2>Devices by Location</h2>
+				<div class="chart-container">
+					<canvas id="locationChart"></canvas>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Alerts Section -->
+		<div class="alerts-section">
+			<h2>Device Alerts</h2>
+			
+			<div class="alert-tabs">
+				<button class="alert-tab active" data-tab="all">All Alerts</button>
+				<button class="alert-tab" data-tab="urgent">Urgent</button>
+				<button class="alert-tab" data-tab="soft">Soft Alerts</button>
+			</div>
+			
+			<div id="alertsContainer" class="alert-list">
+				<div class="loading">Loading alerts...</div>
 			</div>
 		</div>
 	</div>
+	
+	<script>
+		let dashboardData = {
+			devices: [],
+			alerts: { urgent: [], soft: [] }
+		};
+		
+		let statusChart = null;
+		let locationChart = null;
+		
+		// Fetch dashboard data
+		async function fetchDashboardData() {
+			try {
+				const response = await fetch('/data');
+				if (!response.ok) throw new Error('Failed to fetch data');
+				const data = await response.json();
+				dashboardData.devices = data;
+				calculateAlerts();
+				updateDashboard();
+			} catch (error) {
+				showError('Failed to load dashboard data: ' + error.message);
+			}
+		}
+		
+		// Calculate alerts based on inactivity
+		function calculateAlerts() {
+			const now = new Date();
+			dashboardData.alerts = { urgent: [], soft: [] };
+			
+			dashboardData.devices.forEach(device => {
+				const lastSeen = new Date(device.Last_Sighted_Date);
+				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
+				
+				const alertData = {
+					Device_ID: device.Device_ID,
+					Last_Sighted: device.Last_Sighted_Date,
+					Days_Inactive: daysInactive,
+					Location: device.Last_Sighted_Location
+				};
+				
+				if (daysInactive >= 7) {
+					dashboardData.alerts.urgent.push(alertData);
+				} else if (daysInactive >= 3) {
+					dashboardData.alerts.soft.push(alertData);
+				}
+			});
+		}
+		
+		function updateDashboard() {
+			updateStatistics();
+			updateCharts();
+			updateAlertsList('all');
+			updateLastUpdated();
+		}
+		
+		function updateStatistics() {
+			const total = dashboardData.devices.length;
+			const now = new Date();
+			const active = dashboardData.devices.filter(d => {
+				const lastSeen = new Date(d.Last_Sighted_Date);
+				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
+				return daysInactive < 3;
+			}).length;
+			
+			document.getElementById('totalDevices').textContent = total;
+			document.getElementById('activeDevices').textContent = active;
+			document.getElementById('softAlerts').textContent = dashboardData.alerts.soft.length;
+			document.getElementById('urgentAlerts').textContent = dashboardData.alerts.urgent.length;
+		}
+		
+		function updateCharts() {
+			updateStatusChart();
+			updateLocationChart();
+		}
+		
+		function updateStatusChart() {
+			const now = new Date();
+			let active = 0, soft = 0, urgent = 0;
+			
+			dashboardData.devices.forEach(d => {
+				const lastSeen = new Date(d.Last_Sighted_Date);
+				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
+				
+				if (daysInactive < 3) active++;
+				else if (daysInactive < 7) soft++;
+				else urgent++;
+			});
+			
+			const ctx = document.getElementById('statusChart').getContext('2d');
+			
+			if (statusChart) statusChart.destroy();
+			
+			statusChart = new Chart(ctx, {
+				type: 'doughnut',
+				data: {
+					labels: ['Active', 'Soft Alert', 'Urgent Alert'],
+					datasets: [{
+						data: [active, soft, urgent],
+						backgroundColor: ['#48bb78', '#ed8936', '#f56565'],
+						borderWidth: 0
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'bottom'
+						}
+					}
+				}
+			});
+		}
+		
+		function updateLocationChart() {
+			const locationCounts = {};
+			
+			dashboardData.devices.forEach(d => {
+				const loc = d.Last_Sighted_Location || 'Unknown';
+				locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+			});
+			
+			const locations = Object.keys(locationCounts).slice(0, 10);
+			const counts = locations.map(loc => locationCounts[loc]);
+			
+			const ctx = document.getElementById('locationChart').getContext('2d');
+			
+			if (locationChart) locationChart.destroy();
+			
+			locationChart = new Chart(ctx, {
+				type: 'bar',
+				data: {
+					labels: locations,
+					datasets: [{
+						label: 'Devices',
+						data: counts,
+						backgroundColor: '#667eea',
+						borderRadius: 4
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							display: false
+						}
+					},
+					scales: {
+						y: {
+							beginAtZero: true,
+							ticks: {
+								precision: 0
+							}
+						}
+					}
+				}
+			});
+		}
+		
+		function updateAlertsList(filter) {
+			const container = document.getElementById('alertsContainer');
+			let alerts = [];
+			
+			if (filter === 'all') {
+				alerts = [...dashboardData.alerts.urgent, ...dashboardData.alerts.soft];
+			} else if (filter === 'urgent') {
+				alerts = dashboardData.alerts.urgent;
+			} else if (filter === 'soft') {
+				alerts = dashboardData.alerts.soft;
+			}
+			
+			if (alerts.length === 0) {
+				container.innerHTML = '<div class="no-alerts">No alerts to display</div>';
+				return;
+			}
+			
+			container.innerHTML = alerts.map(alert => {
+				const type = alert.Days_Inactive >= 7 ? 'urgent' : 'soft';
+				const typeLabel = type === 'urgent' ? 'URGENT' : 'WARNING';
+				
+				return `
+					<div class="alert-item ${type}">
+						<div class="alert-info">
+							<h4>Device ${alert.Device_ID}</h4>
+							<p>${alert.Location} • Inactive for ${alert.Days_Inactive} days • Last seen: ${new Date(alert.Last_Sighted).toLocaleDateString()}</p>
+						</div>
+						<div class="alert-badge ${type}">${typeLabel}</div>
+					</div>
+				`;
+			}).join('');
+		}
+
+		function updateLastUpdated() {
+			document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+		}
+		
+		function showError(message) {
+			const container = document.getElementById('errorContainer');
+			container.innerHTML = `<div class="error">${message}</div>`;
+		}
+		
+		document.addEventListener('click', (e) => {
+			if (e.target.classList.contains('alert-tab')) {
+				document.querySelectorAll('.alert-tab').forEach(tab => tab.classList.remove('active'));
+				e.target.classList.add('active');
+				updateAlertsList(e.target.dataset.tab);
+			}
+		});
+		
+		fetchDashboardData();
+		
+		setInterval(fetchDashboardData, 30000);
+	</script>
 </body>
 </html>

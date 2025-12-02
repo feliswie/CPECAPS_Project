@@ -246,6 +246,25 @@ def update_database():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/dashboard_data')
+def dashboard_data():
+    """Return dashboard data including alerts."""
+    from database import get_dashboard_alerts
+    
+    try:
+        alerts = get_dashboard_alerts()
+        df = get_all_data()
+        
+        return jsonify({
+            "devices": df.to_dict(orient='records'),
+            "alerts": alerts,
+            "total": len(df),
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True)
 
