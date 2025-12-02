@@ -4,77 +4,9 @@
     <meta charset="UTF-8" />
     <title>Workbook Consolidator</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <style>
-        :root {
-            --blue-500:#2563eb;
-            --blue-600:#1d4ed8;
-            --gray-100:#f3f4f6;
-            --gray-200:#e5e7eb;
-            --gray-300:#d1d5db;
-            --gray-500:#6b7280;
-            --gray-700:#374151;
-            --gray-900:#111827;
-            --success:#16a34a;
-            --warning:#f59e0b;
-            --error:#dc2626;
-        }
-        * { box-sizing: border-box; }
-        body { font-family:"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin:0; background:var(--gray-100); color:var(--gray-900); }
-        main.pipeline-page { max-width:1200px; margin:32px auto 72px; padding:0 24px 48px; display:flex; flex-direction:column; gap:32px; }
-        .page-heading h1 { margin:0; font-size:clamp(1.8rem, 3vw, 2.6rem); font-weight:600; }
-        .page-heading p { margin:8px 0 0; color:var(--gray-500); max-width:720px; }
-        .flow-grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap:24px; align-items:start; }
-        .flow-column { display:flex; flex-direction:column; gap:18px; }
-        .upload-card { background:#fff; border-radius:18px; padding:20px 22px; border:1px solid var(--gray-200); box-shadow:0 8px 28px rgba(15,23,42,0.05); }
-        .upload-card h3 { margin:0 0 6px; font-size:1.05rem; font-weight:600; }
-        .upload-card p { margin:0 0 14px; color:var(--gray-500); font-size:0.92rem; }
-        .upload-box { border:2px dashed var(--blue-500); border-radius:14px; padding:18px; text-align:center; justify-content: center; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:background 0.2s,border-color 0.2s, box-shadow 0.2s; min-height:300px}
-        .upload-box:hover { background:#eff6ff; border-color:var(--blue-600); }
-        .upload-box.drag-over { background:#dbeafe; border-color:var(--blue-600); box-shadow:0 0 0 3px rgba(37,99,235,.2) inset; }
-        .upload-box input[type="file"] { display:none; }
-        .upload-box span { font-weight:600; color:var(--blue-600); }
-        .file-meta { margin-top:8px; font-size:0.9rem; color:var(--gray-500); display:flex; align-items:center; gap:6px; }
-        .status-dot { width:8px; height:8px; border-radius:999px; background:var(--gray-200); display:inline-block; }
-        .status-dot.ready { background:var(--success); }
-        .status-dot.waiting { background:var(--gray-300); }
-        .status-dot.error { background:var(--error); }
-    .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content: center; }
-    .actions.sides { justify-content:space-between; width:100%; }
-    .actions .left, .actions .right { display:flex; gap:12px; align-items:center; }
-        button.primary { background:var(--blue-500); border:none; border-radius:999px; padding:14px 28px; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; transition:transform .2s, background .2s, opacity .2s; box-shadow:0 10px 20px rgba(37,99,235,.25); }
-        button.primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
-        button.primary:not(:disabled):hover { background:var(--blue-600); transform:translateY(-1px); }
-        .status-message { font-size:0.92rem; color:var(--gray-500); min-height:20px; }
-        .status-message.error { color:var(--error); }
-        .status-message.success { color:var(--success); }
-        .result-card { background:#0f172a; color:#fff; border-radius:22px; padding:28px; box-shadow:0 25px 50px rgba(15,23,42,.45); display:flex; flex-direction:column; gap:12px; position:relative; overflow:hidden; }
-        .result-card::after { content:""; position:absolute; inset:auto -30px -40px; height:120px; background:radial-gradient(circle at 20% 0%, rgba(59,130,246,.4), transparent 70%); pointer-events:none; }
-        .result-icon { width:54px; height:54px; border-radius:16px; border:1px solid rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.08); font-size:1.5rem; }
-        .result-card h3 { margin:0; font-size:1.3rem; }
-        .result-card p { margin:0; color:#cbd5f5; font-size:0.95rem; }
-        button.secondary { background:#fff; color:var(--gray-900); border:none; border-radius:12px; padding:12px 20px; font-weight:600; cursor:pointer; transition:opacity .2s, transform .2s; }
-        button.secondary:disabled { opacity:.5; cursor:not-allowed; }
-        button.secondary:not(:disabled):hover { transform:translateY(-1px); }
-        .progress-panel { background:#fff; border-radius:22px; padding:28px; border:1px solid var(--gray-200); box-shadow:0 10px 35px rgba(15,23,42,.04); }
-        .progress-panel h2 { margin:0 0 18px; font-size:1.3rem; }
-        .phase-list { display:flex; flex-direction:column; gap:18px; }
-        .phase-row { border:1px solid var(--gray-200); border-radius:18px; padding:16px 18px; background:var(--gray-50,#f9fafb); }
-        .phase-heading { display:flex; justify-content:space-between; gap:12px; font-weight:600; font-size:0.95rem; color:var(--gray-700); }
-        .phase-text { margin:6px 0 10px; color:var(--gray-500); font-size:0.9rem; }
-        .progress-bar { width:100%; height:8px; background:var(--gray-200); border-radius:999px; overflow:hidden; }
-    .progress-fill { height:100%; background:linear-gradient(90deg, var(--blue-500), #34d399); width:0%; transition:width .4s ease; }
-    .phase-marker > span { display:block; }
-        .phase-row.error { border-color:var(--error); background:#fef2f2; }
-        .phase-row.completed { border-color:var(--success); }
-        .phase-percent { color:var(--gray-500); font-size:0.85rem; }
-        .helper { font-size:0.85rem; color:var(--gray-500); margin:0; }
-        @media (max-width: 960px) {
-            .flow-grid { grid-template-columns:1fr; }
-            .result-card { order:-1; }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="home-page">
     {% include 'partials/header.html' %}
     <main class="pipeline-page">
         <section class="page-heading">
@@ -127,7 +59,7 @@
                     </div>
                     <p class="phase-text" id="single-phase-text">Waiting to begin.</p>
                     <div class="progress-bar"><div class="progress-fill" data-phase-progress="single"></div></div>
-                    <div class="actions sides" style="padding-top: 16px;">
+                    <div class="actions sides pad-top-16">
                         <div class="left">
                             <button class="primary" id="process-btn" disabled>Process &amp; Generate File</button>
                         </div>

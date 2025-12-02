@@ -6,171 +6,8 @@
 	<title>Dashboard</title>
 	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-	<style>
-		.container { max-width: 1400px; margin: 24px auto; padding: 0 16px; }
-		
-		.dashboard-header {
-			margin-bottom: 32px;
-		}
-		
-		.dashboard-header h1 {
-			font-size: 2rem;
-			margin-bottom: 8px;
-			color: #1a202c;
-		}
-		
-		.last-updated {
-			color: #718096;
-			font-size: 0.9rem;
-		}
-		
-		.stats-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-			gap: 16px;
-			margin-bottom: 32px;
-		}
-		
-		.stat-card {
-			background: #fff;
-			border-radius: 8px;
-			padding: 24px;
-			box-shadow: 0 1px 4px rgba(0,0,0,.08);
-			transition: transform 0.2s, box-shadow 0.2s;
-		}
-		
-		.stat-card:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 4px 12px rgba(0,0,0,.12);
-		}
-		
-		.stat-card h3 {
-			font-size: 0.85rem;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-			color: #718096;
-			margin-bottom: 12px;
-			font-weight: 600;
-		}
-		
-		.stat-card .value {
-			font-size: 2.5rem;
-			font-weight: bold;
-			margin-bottom: 8px;
-		}
-		
-		.stat-card .change {
-			font-size: 0.85rem;
-			color: #718096;
-		}
-		
-		.stat-card.total .value { color: #667eea; }
-		.stat-card.active .value { color: #48bb78; }
-		.stat-card.warning .value { color: #ed8936; }
-		.stat-card.critical .value { color: #f56565; }
-		
-		.charts-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-			gap: 24px;
-			margin-bottom: 32px;
-		}
-		
-		.chart-card {
-			background: #fff;
-			border-radius: 8px;
-			padding: 24px;
-			box-shadow: 0 1px 4px rgba(0,0,0,.08);
-		}
-		
-		.chart-card h2 {
-			font-size: 1.25rem;
-			margin-bottom: 20px;
-			color: #2d3748;
-		}
-		
-		.chart-container {
-			position: relative;
-			height: 300px;
-		}
-		
-		.table-card {
-			background: #fff;
-			border-radius: 8px;
-			padding: 24px;
-			box-shadow: 0 1px 4px rgba(0,0,0,.08);
-		}
-
-		.table-header {
-			display: flex;
-			flex-direction: column;
-			gap: 4px;
-			margin-bottom: 12px;
-		}
-
-		.table-header h2 {
-			font-size: 1.25rem;
-			margin: 0;
-			color: #2d3748;
-		}
-
-		.table-note {
-			margin: 0;
-			color: #718096;
-			font-size: 0.9rem;
-		}
-
-		.table-wrapper {
-			overflow-x: auto;
-		}
-
-		.device-table {
-			width: 100%;
-			border-collapse: collapse;
-		}
-
-		.device-table th,
-		.device-table td {
-			padding: 12px 16px;
-			border-bottom: 1px solid #e2e8f0;
-			text-align: left;
-			font-size: 0.95rem;
-		}
-
-		.device-table th {
-			background: #f8fafc;
-			font-size: 0.85rem;
-			text-transform: uppercase;
-			letter-spacing: 0.5px;
-			color: #4a5568;
-		}
-
-		.device-table tbody tr:hover {
-			background: #f7fafc;
-		}
-
-		.empty-state {
-			text-align: center;
-			color: #718096;
-		}
-
-		.loading {
-			text-align: center;
-			padding: 40px;
-			color: #718096;
-		}
-		
-		.error {
-			background: #fff5f5;
-			border: 1px solid #fc8181;
-			color: #c53030;
-			padding: 16px;
-			border-radius: 8px;
-			margin-bottom: 24px;
-		}
-	</style>
 </head>
-<body style="margin: 0px">
+<body class="dashboard-page">
 	{% include 'partials/header.html' %}
 	
 	<div class="container">
@@ -180,6 +17,24 @@
 		</div>
 		
 		<div id="errorContainer"></div>
+
+		<!-- Upload MAIN file -->
+		<article class="upload-card" data-upload="main">
+			<h3>Upload Main Inventory</h3>
+			<label class="upload-box">
+				<input type="file" id="main-input" accept=".xls,.xlsx" />
+				<span>Select or drag a file here</span>
+				<small>This workbook should contain the sheets named <b>MAIN</b>, <b>DMS Dump</b>, and the <b>repJourney dump</b></small>
+			</label>
+			<div class="file-meta upload-meta">
+				<div class="file-meta-label">
+					<span class="status-dot waiting"></span>
+					<span data-file-label="main">Waiting for file</span>
+				</div>
+				<button class="primary" id="dashboardUploadBtn" disabled>Upload File</button>
+			</div>
+			<p class="upload-message" id="mainUploadStatus"></p>
+		</article><br>
 		
 		<!-- Statistics Cards -->
 		<div class="stats-grid">
@@ -196,15 +51,21 @@
 			</div>
 			
 			<div class="stat-card warning">
-				<h3>Soft Alerts</h3>
-				<div class="value" id="softAlerts">—</div>
+				<h3>Soft Chase</h3>
+				<div class="value" id="softChase">—</div>
 				<div class="change">Inactive 3-6 days</div>
 			</div>
 			
 			<div class="stat-card critical">
-				<h3>Urgent Alerts</h3>
-				<div class="value" id="urgentAlerts">—</div>
+				<h3>Urgent Chase</h3>
+				<div class="value" id="urgentChase">—</div>
 				<div class="change">Inactive 7+ days</div>
+			</div>
+			
+			<div class="stat-card unknown">
+				<h3>Unknown Status</h3>
+				<div class="value" id="unknownDevices">—</div>
+				<div class="change">Missing last sighted</div>
 			</div>
 		</div>
 		
@@ -229,29 +90,133 @@
 		<div class="table-card">
 			<div class="table-header">
 				<h2>Latest device snapshot</h2>
-				<p class="table-note" id="deviceTableNote">Waiting for a completed run...</p>
 			</div>
+			<div class="table-controls">
+				<div class="filters-grid">
+					<div class="filter-group">
+						<label for="filterDeviceId">Device ID</label>
+						<input type="text" id="filterDeviceId" placeholder="Search device ID">
+					</div>
+					<div class="filter-group">
+						<label>Last sighted (range)</label>
+						<div class="filter-pair">
+							<input type="date" id="filterLastSeenFrom">
+							<input type="date" id="filterLastSeenTo">
+						</div>
+					</div>
+					<div class="filter-group">
+						<label for="filterLocation">Last location</label>
+						<input type="text" id="filterLocation" list="locationOptions" placeholder="Search or pick location">
+						<datalist id="locationOptions"></datalist>
+					</div>
+					<div class="filter-group">
+						<label>Days inactive (range)</label>
+						<div class="filter-pair">
+							<input type="number" id="filterDaysMin" min="0" placeholder="Min">
+							<input type="number" id="filterDaysMax" min="0" placeholder="Max">
+						</div>
+					</div>
+					<div class="filter-group">
+						<label for="filterStatus">Status</label>
+						<select id="filterStatus">
+							<option value="">All statuses</option>
+							<option value="active">Active</option>
+							<option value="soft">Soft Chase</option>
+							<option value="urgent">Urgent Chase</option>
+							<option value="unknown">Unknown</option>
+						</select>
+					</div>
+				</div>
+				<div class="filter-actions">
+					<p class="table-note" id="deviceTableNote">Waiting for a completed run...</p>
+					<button type="button" class="clear-filters" id="clearFilters">Clear filters</button>
+				</div>
+				<div class="pagination-controls" data-pagination="top">
+					<div class="pagination-info" data-pagination-info>No data available</div>
+					<div class="pagination-buttons">
+						<button type="button" data-page-action="first">First</button>
+						<button type="button" data-page-action="prev">Previous</button>
+						<div class="pagination-pages" data-pagination-pages></div>
+						<button type="button" data-page-action="next">Next</button>
+						<button type="button" data-page-action="last">Last</button>
+					</div>
+				</div>
+			</div>
+
 			<div class="table-wrapper">
 				<table class="device-table">
 					<thead>
 						<tr>
-							<th>Device ID</th>
-							<th>Last sighted</th>
-							<th>Location</th>
-							<th>Location code</th>
+							<th>
+								<button type="button" class="sort-button" data-sort-key="deviceId">
+									<span>Device ID</span>
+									<span class="sort-indicator"></span>
+								</button>
+							</th>
+							<th>
+								<button type="button" class="sort-button" data-sort-key="lastSeen">
+									<span>Last sighted</span>
+									<span class="sort-indicator"></span>
+								</button>
+							</th>
+							<th>
+								<button type="button" class="sort-button" data-sort-key="location">
+									<span>Last location</span>
+									<span class="sort-indicator"></span>
+								</button>
+							</th>
+							<th>
+								<button type="button" class="sort-button" data-sort-key="daysInactive">
+									<span>Days inactive</span>
+									<span class="sort-indicator"></span>
+								</button>
+							</th>
+							<th>
+								<button type="button" class="sort-button" data-sort-key="status">
+									<span>Status</span>
+									<span class="sort-indicator"></span>
+								</button>
+							</th>
 						</tr>
 					</thead>
 					<tbody id="deviceTableBody">
 						<tr>
-							<td colspan="4" class="empty-state">No processed workbook yet.</td>
+							<td colspan="5" class="empty-state">No processed workbook yet.</td>
 						</tr>
 					</tbody>
 				</table>
+			</div>
+			<div class="pagination-controls" data-pagination="bottom">
+				<div class="pagination-info" data-pagination-info>No data available</div>
+				<div class="pagination-buttons">
+					<button type="button" data-page-action="first">First</button>
+					<button type="button" data-page-action="prev">Previous</button>
+					<div class="pagination-pages" data-pagination-pages></div>
+					<button type="button" data-page-action="next">Next</button>
+					<button type="button" data-page-action="last">Last</button>
+				</div>
 			</div>
 		</div>
 	</div>
 	
 	<script>
+		const MS_PER_DAY = 24 * 60 * 60 * 1000;
+		const STATUS_LABELS = { active: 'Active', soft: 'Soft Chase', urgent: 'Urgent Chase', unknown: 'Unknown' };
+		const STATUS_ORDER = { active: 0, soft: 1, urgent: 2, unknown: 3 };
+		const STATUS_SEQUENCE = ['', 'active', 'soft', 'urgent', 'unknown'];
+		const STATUS_COLORS = ['#48bb78', '#ed8936', '#f56565', '#a0aec0'];
+		const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+		const mainUpload = {
+			file: null,
+			isUploading: false,
+			input: document.getElementById('main-input'),
+			button: document.getElementById('dashboardUploadBtn'),
+			statusDot: document.querySelector('[data-upload="main"] .status-dot'),
+			fileLabel: document.querySelector('[data-upload="main"] [data-file-label="main"]'),
+			message: document.getElementById('mainUploadStatus'),
+			dropZone: document.querySelector('[data-upload="main"] .upload-box'),
+		};
+
 		let dashboardData = {
 			devices: [],
 			alerts: { urgent: [], soft: [] },
@@ -261,6 +226,148 @@
 
 		let statusChart = null;
 		let locationChart = null;
+
+		const tableState = {
+			filters: getDefaultFilters(),
+			sort: { field: 'lastSeen', direction: 'desc' },
+			pagination: { page: 1, perPage: 50 }
+		};
+
+		const filterElements = {
+			deviceId: document.getElementById('filterDeviceId'),
+			lastSeenFrom: document.getElementById('filterLastSeenFrom'),
+			lastSeenTo: document.getElementById('filterLastSeenTo'),
+			location: document.getElementById('filterLocation'),
+			daysMin: document.getElementById('filterDaysMin'),
+			daysMax: document.getElementById('filterDaysMax'),
+			status: document.getElementById('filterStatus')
+		};
+
+		const locationDatalist = document.getElementById('locationOptions');
+		const clearFiltersButton = document.getElementById('clearFilters');
+		const paginationInfoElements = document.querySelectorAll('[data-pagination-info]');
+		const paginationPagesContainers = document.querySelectorAll('[data-pagination-pages]');
+		const paginationActionButtons = document.querySelectorAll('[data-page-action]');
+		const tableNote = document.getElementById('deviceTableNote');
+		const tableBody = document.getElementById('deviceTableBody');
+
+		setupMainUploadArea();
+		setupFilterControls();
+		setupSortControls();
+		setupPaginationControls();
+
+		function setupMainUploadArea() {
+			if (!mainUpload.input || !mainUpload.button) {
+				return;
+			}
+			mainUpload.input.addEventListener('change', event => {
+				const file = event.target.files?.[0] || null;
+				setMainUploadFile(file);
+				setUploadMessage('');
+			});
+			mainUpload.button.addEventListener('click', handleMainUpload);
+			if (mainUpload.dropZone) {
+				['dragenter', 'dragover'].forEach(evt => {
+					mainUpload.dropZone.addEventListener(evt, event => {
+						event.preventDefault();
+						event.stopPropagation();
+						mainUpload.dropZone.classList.add('drag-over');
+					});
+				});
+				mainUpload.dropZone.addEventListener('dragleave', event => {
+					event.preventDefault();
+					event.stopPropagation();
+					if (mainUpload.dropZone.contains(event.relatedTarget)) {
+						return;
+					}
+					mainUpload.dropZone.classList.remove('drag-over');
+				});
+				mainUpload.dropZone.addEventListener('drop', event => {
+					event.preventDefault();
+					event.stopPropagation();
+					mainUpload.dropZone.classList.remove('drag-over');
+					const droppedFile = event.dataTransfer?.files?.[0] || null;
+					if (droppedFile) {
+						setMainUploadFile(droppedFile);
+						setUploadMessage('');
+					}
+				});
+			}
+		}
+
+		function setMainUploadFile(file) {
+			mainUpload.file = file || null;
+			if (mainUpload.fileLabel) {
+				mainUpload.fileLabel.textContent = file ? file.name : 'Waiting for file';
+			}
+			if (mainUpload.statusDot) {
+				mainUpload.statusDot.classList.remove('ready', 'waiting');
+				mainUpload.statusDot.classList.add(file ? 'ready' : 'waiting');
+			}
+			if (mainUpload.button && !mainUpload.isUploading) {
+				mainUpload.button.disabled = !file;
+			}
+		}
+
+		function setUploadMessage(text, variant = 'info') {
+			if (!mainUpload.message) {
+				return;
+			}
+			mainUpload.message.textContent = text || '';
+			mainUpload.message.classList.remove('error', 'success');
+			if (!text) {
+				mainUpload.message.style.display = 'none';
+				return;
+			}
+			mainUpload.message.style.display = 'block';
+			if (variant !== 'info') {
+				mainUpload.message.classList.add(variant);
+			}
+		}
+
+		async function handleMainUpload() {
+			if (!mainUpload.file || mainUpload.isUploading) {
+				return;
+			}
+			if (dashboardData?.meta && Object.keys(dashboardData.meta).length) {
+				const confirmed = window.confirm('Uploading a new workbook will replace the current dashboard data. Continue?');
+				if (!confirmed) {
+					return;
+				}
+			}
+			mainUpload.isUploading = true;
+			setUploadMessage('Uploading workbook...', 'info');
+			if (mainUpload.button) {
+				mainUpload.button.disabled = true;
+				mainUpload.button.textContent = 'Uploading...';
+			}
+			const formData = new FormData();
+			formData.append('main_file', mainUpload.file);
+			try {
+				const response = await fetch('/dashboard_upload', {
+					method: 'POST',
+					body: formData,
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) {
+					throw new Error(payload.error || 'Upload failed.');
+				}
+				setUploadMessage(payload.message || 'Upload successful.', 'success');
+				setMainUploadFile(null);
+				if (mainUpload.input) {
+					mainUpload.input.value = '';
+				}
+				await fetchDashboardData();
+			} catch (error) {
+				setUploadMessage(error.message || 'Upload failed.', 'error');
+			} finally {
+				mainUpload.isUploading = false;
+				if (mainUpload.button) {
+					mainUpload.button.textContent = 'Upload File';
+					mainUpload.button.disabled = !mainUpload.file;
+				}
+			}
+		}
 
 		async function fetchDashboardData() {
 			try {
@@ -280,31 +387,81 @@
 		function updateDashboard() {
 			updateStatistics();
 			updateCharts();
+			populateLocationOptions(dashboardData.devices);
 			renderDeviceTable();
 			updateLastUpdated();
 		}
 
-		function computeActiveCount() {
+		function getStatusCounts() {
+			const counts = { active: 0, soft: 0, urgent: 0, unknown: 0 };
 			const now = new Date();
-			return dashboardData.devices.filter(device => {
-				const lastSeen = new Date(device.Last_Sighted_Date);
-				if (isNaN(lastSeen)) return false;
-				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
-				return daysInactive < 3;
-			}).length;
+			(dashboardData.devices || []).forEach(device => {
+				const raw = device?.Last_Sighted_Date;
+				if (!raw) {
+					counts.unknown += 1;
+					return;
+				}
+				const seen = new Date(raw);
+				if (Number.isNaN(seen.getTime())) {
+					counts.unknown += 1;
+					return;
+				}
+				const diffMs = now - seen;
+				const days = diffMs > 0 ? Math.floor(diffMs / MS_PER_DAY) : 0;
+				if (days < 3) {
+					counts.active += 1;
+				} else if (days < 7) {
+					counts.soft += 1;
+				} else {
+					counts.urgent += 1;
+				}
+			});
+			return counts;
+		}
+
+		function populateLocationOptions(devices) {
+			if (!locationDatalist) {
+				return;
+			}
+			const unique = new Set();
+			(devices || []).forEach(device => {
+				const value = (device?.Last_Sighted_Location || '').trim();
+				if (value) {
+					unique.add(value);
+				}
+			});
+			locationDatalist.innerHTML = '';
+			Array.from(unique)
+				.sort((a, b) => collator.compare(a, b))
+				.slice(0, 100)
+				.forEach(text => {
+					const option = document.createElement('option');
+					option.value = text;
+					locationDatalist.appendChild(option);
+				});
+		}
+
+		function computeActiveCount() {
+			return getStatusCounts().active;
 		}
 
 		function updateStatistics() {
 			const stats = dashboardData.stats || {};
+			const statusCounts = getStatusCounts();
 			const total = stats.total_devices ?? dashboardData.devices.length;
-			const active = stats.active_devices ?? computeActiveCount();
-			const softCount = stats.soft_count ?? (dashboardData.alerts.soft?.length || 0);
-			const urgentCount = stats.urgent_count ?? (dashboardData.alerts.urgent?.length || 0);
+			const active = stats.active_devices ?? statusCounts.active;
+			const softCount = stats.soft_count ?? statusCounts.soft;
+			const urgentCount = stats.urgent_count ?? statusCounts.urgent;
+			const unknownCount = stats.unknown_count ?? statusCounts.unknown;
 
 			document.getElementById('totalDevices').textContent = total;
 			document.getElementById('activeDevices').textContent = active;
-			document.getElementById('softAlerts').textContent = softCount;
-			document.getElementById('urgentAlerts').textContent = urgentCount;
+			document.getElementById('softChase').textContent = softCount;
+			document.getElementById('urgentChase').textContent = urgentCount;
+			const unknownEl = document.getElementById('unknownDevices');
+			if (unknownEl) {
+				unknownEl.textContent = unknownCount;
+			}
 		}
 
 		function updateCharts() {
@@ -313,18 +470,7 @@
 		}
 
 		function updateStatusChart() {
-			const now = new Date();
-			let active = 0, soft = 0, urgent = 0;
-
-			dashboardData.devices.forEach(d => {
-				const lastSeen = new Date(d.Last_Sighted_Date);
-				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
-
-				if (daysInactive < 3) active++;
-				else if (daysInactive < 7) soft++;
-				else urgent++;
-			});
-
+			const counts = getStatusCounts();
 			const ctx = document.getElementById('statusChart').getContext('2d');
 
 			if (statusChart) statusChart.destroy();
@@ -332,10 +478,10 @@
 			statusChart = new Chart(ctx, {
 				type: 'doughnut',
 				data: {
-					labels: ['Active', 'Soft Alert', 'Urgent Alert'],
+					labels: ['Active', 'Soft Chase', 'Urgent Chase', 'Unknown'],
 					datasets: [{
-						data: [active, soft, urgent],
-						backgroundColor: ['#48bb78', '#ed8936', '#f56565'],
+						data: [counts.active, counts.soft, counts.urgent, counts.unknown],
+						backgroundColor: STATUS_COLORS,
 						borderWidth: 0
 					}]
 				},
@@ -355,7 +501,7 @@
 			const locationCounts = {};
 
 			dashboardData.devices.forEach(d => {
-				const loc = d.Last_Sighted_Location || 'Unknown';
+				const loc = (d.Last_Sighted_Location || 'Unknown').trim() || 'Unknown';
 				locationCounts[loc] = (locationCounts[loc] || 0) + 1;
 			});
 
@@ -397,47 +543,344 @@
 			});
 		}
 
-		function renderDeviceTable(limit = 50) {
-			const body = document.getElementById('deviceTableBody');
-			const note = document.getElementById('deviceTableNote');
-			if (!dashboardData.devices.length) {
-				body.innerHTML = '<tr><td colspan="4" class="empty-state">No processed workbook yet.</td></tr>';
-				note.textContent = 'Waiting for the first successful consolidation run.';
+		function getDefaultFilters() {
+			return {
+				deviceId: '',
+				lastSeenFrom: '',
+				lastSeenTo: '',
+				location: '',
+				daysMin: '',
+				daysMax: '',
+				status: ''
+			};
+		}
+
+		function setupFilterControls() {
+			const bindings = [
+				{ element: filterElements.deviceId, field: 'deviceId', event: 'input' },
+				{ element: filterElements.lastSeenFrom, field: 'lastSeenFrom', event: 'change' },
+				{ element: filterElements.lastSeenTo, field: 'lastSeenTo', event: 'change' },
+				{ element: filterElements.location, field: 'location', event: 'input' },
+				{ element: filterElements.daysMin, field: 'daysMin', event: 'input' },
+				{ element: filterElements.daysMax, field: 'daysMax', event: 'input' },
+				{ element: filterElements.status, field: 'status', event: 'change' },
+			];
+			bindings.forEach(({ element, field, event }) => {
+				if (!element) return;
+				element.addEventListener(event, evt => handleFilterChange(field, evt.target.value));
+			});
+			if (clearFiltersButton) {
+				clearFiltersButton.addEventListener('click', () => {
+					tableState.filters = getDefaultFilters();
+					Object.entries(filterElements).forEach(([field, element]) => {
+						if (!element) return;
+						const value = tableState.filters[field] ?? '';
+						try {
+							element.value = value;
+						} catch (error) {
+							// ignore read-only nodes
+						}
+					});
+					tableState.pagination.page = 1;
+					renderDeviceTable();
+				});
+			}
+		}
+
+		function handleFilterChange(field, rawValue) {
+			if (!(field in tableState.filters)) {
 				return;
 			}
+			const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+			tableState.filters[field] = value || '';
+			tableState.pagination.page = 1;
+			renderDeviceTable();
+		}
 
-			const rows = dashboardData.devices.slice(0, limit).map(device => `
-				<tr>
-					<td>${device.Device_ID || '—'}</td>
-					<td>${formatDate(device.Last_Sighted_Date)}</td>
-					<td>${device.Last_Sighted_Location || '—'}</td>
-					<td>${device.Location_Code || '—'}</td>
-				</tr>
-			`).join('');
-			body.innerHTML = rows;
-			const total = dashboardData.devices.length;
-			const generated = dashboardData.meta.generated_at || dashboardData.stats.generated_at;
-			const timestamp = generated ? new Date(generated) : null;
-			const formattedTs = timestamp && !isNaN(timestamp) ? timestamp.toLocaleString() : generated;
-			note.textContent = `Showing ${Math.min(limit, total).toLocaleString()} of ${total.toLocaleString()} devices${formattedTs ? ` • updated ${formattedTs}` : ''}.`;
+		function getDeviceStatus(device) {
+			const lastSeen = device?.Last_Sighted_Date ? new Date(device.Last_Sighted_Date) : null;
+			if (!lastSeen || Number.isNaN(lastSeen.getTime())) {
+				return 'unknown';
+			}
+			const days = Math.max(0, Math.floor((Date.now() - lastSeen.getTime()) / MS_PER_DAY));
+			if (days < 3) return 'active';
+			if (days < 7) return 'soft';
+			return 'urgent';
+		}
+
+		function getFilteredDevices() {
+			const filters = tableState.filters;
+			return (dashboardData.devices || []).filter(device => {
+				const deviceId = (device?.Device_ID || '').toLowerCase();
+				const location = (device?.Last_Sighted_Location || '').toLowerCase();
+				const status = getDeviceStatus(device);
+				const lastSeen = device?.Last_Sighted_Date ? new Date(device.Last_Sighted_Date) : null;
+				const daysInactive = lastSeen && !Number.isNaN(lastSeen.getTime())
+					? Math.max(0, Math.floor((Date.now() - lastSeen.getTime()) / MS_PER_DAY))
+					: null;
+
+				if (filters.deviceId && !deviceId.includes(filters.deviceId.toLowerCase())) {
+					return false;
+				}
+				if (filters.location && !location.includes(filters.location.toLowerCase())) {
+					return false;
+				}
+				if (filters.status && status !== filters.status) {
+					return false;
+				}
+				if (filters.daysMin && (daysInactive ?? Infinity) < Number(filters.daysMin)) {
+					return false;
+				}
+				if (filters.daysMax && (daysInactive ?? -Infinity) > Number(filters.daysMax)) {
+					return false;
+				}
+				if (filters.lastSeenFrom) {
+					const fromDate = parseDateInput(filters.lastSeenFrom);
+					if (!lastSeen || lastSeen < fromDate) {
+						return false;
+					}
+				}
+				if (filters.lastSeenTo) {
+					const toDate = parseDateInput(filters.lastSeenTo, true);
+					if (!lastSeen || lastSeen > toDate) {
+						return false;
+					}
+				}
+				return true;
+			});
+		}
+
+		function getSortedDevices(devices) {
+			const { field, direction } = tableState.sort;
+			const multiplier = direction === 'asc' ? 1 : -1;
+			const statusOrder = STATUS_ORDER;
+			return [...devices].sort((a, b) => {
+				const av = getSortValue(a, field);
+				const bv = getSortValue(b, field);
+				if (av === bv) return 0;
+				if (av === undefined || av === null) return 1;
+				if (bv === undefined || bv === null) return -1;
+				if (typeof av === 'string' && typeof bv === 'string') {
+					return collator.compare(av, bv) * multiplier;
+				}
+				return av > bv ? multiplier : -multiplier;
+			});
+
+			function getSortValue(device, sortField) {
+				switch (sortField) {
+					case 'deviceId':
+						return device?.Device_ID || '';
+					case 'lastSeen':
+						return device?.Last_Sighted_Date ? new Date(device.Last_Sighted_Date).getTime() : null;
+					case 'location':
+						return device?.Last_Sighted_Location || '';
+					case 'daysInactive': {
+						const dt = device?.Last_Sighted_Date ? new Date(device.Last_Sighted_Date) : null;
+						return dt && !Number.isNaN(dt.getTime()) ? Math.floor((Date.now() - dt.getTime()) / MS_PER_DAY) : null;
+					}
+					case 'status':
+					default:
+						return statusOrder[getDeviceStatus(device)] ?? 99;
+				}
+			}
+		}
+
+		function setupSortControls() {
+			const buttons = document.querySelectorAll('.sort-button');
+			buttons.forEach(button => {
+				const key = button.dataset.sortKey;
+				if (!key) return;
+				button.addEventListener('click', () => {
+					if (tableState.sort.field === key) {
+						tableState.sort.direction = tableState.sort.direction === 'asc' ? 'desc' : 'asc';
+					} else {
+						tableState.sort.field = key;
+						tableState.sort.direction = key === 'deviceId' ? 'asc' : 'desc';
+					}
+					updateSortIndicators();
+					renderDeviceTable();
+				});
+			});
+			updateSortIndicators();
+		}
+
+		function updateSortIndicators() {
+			document.querySelectorAll('.sort-button').forEach(button => {
+				const key = button.dataset.sortKey;
+				button.classList.toggle('active', key === tableState.sort.field);
+				button.classList.toggle('asc', key === tableState.sort.field && tableState.sort.direction === 'asc');
+				button.classList.toggle('desc', key === tableState.sort.field && tableState.sort.direction === 'desc');
+			});
+		}
+
+		function setupPaginationControls() {
+			paginationActionButtons.forEach(button => {
+				button.addEventListener('click', () => {
+					const action = button.dataset.pageAction;
+					if (!action) return;
+					changePage(action);
+				});
+			});
+		}
+
+		function changePage(action) {
+			const totalPages = tableState.pagination.totalPages || 1;
+			let next = tableState.pagination.page;
+			switch (action) {
+				case 'first':
+					next = 1;
+					break;
+				case 'prev':
+					next = Math.max(1, next - 1);
+					break;
+				case 'next':
+					next = Math.min(totalPages, next + 1);
+					break;
+				case 'last':
+					next = totalPages;
+					break;
+				default:
+					return;
+			}
+			if (next !== tableState.pagination.page) {
+				tableState.pagination.page = next;
+				renderDeviceTable();
+			}
+		}
+
+		function renderDeviceTable() {
+			const filtered = getFilteredDevices();
+			const sorted = getSortedDevices(filtered);
+			const { page, perPage } = tableState.pagination;
+			const total = sorted.length;
+			const totalPages = Math.max(1, Math.ceil(total / perPage) || 1);
+			const clampedPage = Math.min(Math.max(page, 1), totalPages);
+			tableState.pagination.page = clampedPage;
+			tableState.pagination.totalPages = totalPages;
+			const startIndex = (clampedPage - 1) * perPage;
+			const visible = sorted.slice(startIndex, startIndex + perPage);
+
+			if (!tableBody) {
+				return;
+			}
+			if (!visible.length) {
+				tableBody.innerHTML = '<tr><td colspan="5" class="empty-state">No processed workbook yet.</td></tr>';
+			} else {
+				tableBody.innerHTML = visible.map(device => {
+					const lastSeen = formatDateOnly(device.Last_Sighted_Date);
+					const location = device.Last_Sighted_Location || '—';
+					const daysInactive = device.Last_Sighted_Date ? Math.max(0, Math.floor((Date.now() - new Date(device.Last_Sighted_Date)) / MS_PER_DAY)) : null;
+					const status = getDeviceStatus(device);
+					return `
+						<tr>
+							<td>${escapeHtml(device.Device_ID || '—')}</td>
+							<td>${escapeHtml(lastSeen)}</td>
+							<td>${escapeHtml(location)}</td>
+							<td>${daysInactive ?? '—'}</td>
+							<td>${renderStatusPill(status)}</td>
+						</tr>
+					`;
+				}).join('');
+			}
+
+			if (tableNote) {
+				if (!total) {
+					tableNote.textContent = 'Waiting for a completed run...';
+				} else {
+					const endIndex = Math.min(total, startIndex + visible.length);
+					tableNote.textContent = `Showing ${startIndex + 1}-${endIndex} of ${total} devices`;
+				}
+			}
+
+			updatePaginationControls(total, totalPages, clampedPage);
+		}
+
+		function renderStatusPill(status) {
+			const label = STATUS_LABELS[status] || 'Unknown';
+			return `<span class="status-pill ${status}">${label}</span>`;
+		}
+
+		function updatePaginationControls(total, totalPages, page) {
+			const { perPage } = tableState.pagination;
+			const start = total === 0 ? 0 : (page - 1) * perPage + 1;
+			const end = total === 0 ? 0 : Math.min(total, page * perPage);
+			paginationInfoElements.forEach(el => {
+				if (!el) return;
+				el.textContent = total ? `Showing ${start}-${end} of ${total}` : 'No data available';
+			});
+			paginationPagesContainers.forEach(container => {
+				if (!container) return;
+				container.innerHTML = '';
+				const maxButtons = 5;
+				let startPage = Math.max(1, page - 2);
+				let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+				if (endPage - startPage < maxButtons - 1) {
+					startPage = Math.max(1, endPage - maxButtons + 1);
+				}
+				for (let p = startPage; p <= endPage; p += 1) {
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.textContent = p;
+					btn.classList.toggle('active', p === page);
+					btn.addEventListener('click', () => {
+						if (p === tableState.pagination.page) return;
+						tableState.pagination.page = p;
+						renderDeviceTable();
+					});
+					container.appendChild(btn);
+				}
+			});
+			paginationActionButtons.forEach(button => {
+				const action = button.dataset.pageAction;
+				switch (action) {
+					case 'first':
+					case 'prev':
+						button.disabled = page <= 1;
+						break;
+					case 'next':
+					case 'last':
+						button.disabled = page >= totalPages;
+						break;
+				}
+			});
+		}
+
+		function formatDateOnly(value) {
+			if (!value) return '—';
+			const dt = value instanceof Date ? value : new Date(value);
+			if (isNaN(dt)) return '—';
+			return dt.toLocaleDateString();
+		}
+
+		function formatDateTime(value) {
+			if (!value) return '';
+			const dt = new Date(value);
+			if (isNaN(dt)) return '';
+			return dt.toLocaleString();
+		}
+
+		function parseDateInput(value, endOfDay = false) {
+			if (!value) return null;
+			const parts = value.split('-').map(Number);
+			if (parts.length !== 3 || parts.some(num => Number.isNaN(num))) return null;
+			const [year, month, day] = parts;
+			return new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0);
+		}
+
+		function escapeHtml(value) {
+			return (value ?? '').toString()
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
 		}
 
 		function updateLastUpdated() {
 			const target = document.getElementById('lastUpdate');
 			const generated = dashboardData.stats.generated_at || dashboardData.meta.generated_at;
-			if (!generated) {
-				target.textContent = '—';
-				return;
-			}
-			const dt = new Date(generated);
-			target.textContent = isNaN(dt) ? generated : dt.toLocaleString();
-		}
-
-		function formatDate(value) {
-			if (!value) return '—';
-			const dt = new Date(value);
-			if (isNaN(dt)) return value;
-			return dt.toLocaleString();
+			const formatted = formatDateTime(generated);
+			target.textContent = formatted || '—';
 		}
 
 		function showError(message) {

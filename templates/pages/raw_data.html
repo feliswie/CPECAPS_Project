@@ -4,78 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raw Data View</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-        }
-        .nav-bar {
-            margin-bottom: 20px;
-        }
-        .nav-bar a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        .upload-section {
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .instructions {
-            margin: 15px 0;
-            padding: 10px;
-            background-color: #e9ecef;
-            border-radius: 5px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-        th {
-            background-color: #007bff;
-            color: white;
-        }
-        .message {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            display: none;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="margin: 0px">
+
+<body class="raw-page">
     {% include 'partials/header.html' %}
 
-    <div class="upload-section">
+    <main class="raw-page-content">
+    <div class="raw-upload">
         <h2>Upload Excel File</h2>
-        <div class="instructions">
+        <div class="raw-instructions">
             <p>Excel file must contain these columns in order:</p>
             <ol>
                 <li>Column 1: (Ignored)</li>
@@ -86,9 +24,9 @@
             </ol>
             <p>Note: Headers are optional. If present, they will be automatically detected and skipped.</p>
         </div>
-        <form id="uploadForm">
+        <form id="uploadForm" class="raw-upload-form">
             <input type="file" name="file" accept=".xlsx,.xls" required>
-            <button type="submit">Upload</button>
+            <button type="submit" class="btn">Upload</button>
         </form>
         <div id="message" class="message"></div>
     </div>
@@ -96,25 +34,37 @@
     <h1>Raw Data</h1>
 
     <!-- Filters -->
-    <div id="filters" style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-        <label>Device ID: <input id="filter-device" placeholder="DEV123" style="padding:6px;" /></label>
-        <label>Location: <input id="filter-location" placeholder="Building A" style="padding:6px;" /></label>
-        <label>Location Code: <input id="filter-location-code" placeholder="LOC1" style="padding:6px;" /></label>
-        <div style="display:flex;gap:8px;align-items:center;">
-            <label>Last Sighted:</label>
-            <select id="filter-date-type" style="padding:6px;">
-                <option value="on">on</option>
-                <option value="before">before</option>
-                <option value="after">after</option>
-            </select>
-            <input id="filter-date" type="date" style="padding:6px;" />
+    <div id="filters" class="raw-filter-bar">
+        <label class="raw-filter-field">Device ID
+            <input id="filter-device" placeholder="DEV123" class="raw-filter-input" />
+        </label>
+        <label class="raw-filter-field">Location
+            <input id="filter-location" placeholder="Building A" class="raw-filter-input" />
+        </label>
+        <label class="raw-filter-field">Location Code
+            <input id="filter-location-code" placeholder="LOC1" class="raw-filter-input" />
+        </label>
+        <div class="raw-filter-field raw-filter-date">
+            <span class="raw-filter-label">Last Sighted</span>
+            <div class="raw-filter-date-controls">
+                <select id="filter-date-type" class="raw-filter-input">
+                    <option value="on">on</option>
+                    <option value="before">before</option>
+                    <option value="after">after</option>
+                </select>
+                <input id="filter-date" type="date" class="raw-filter-input" />
+            </div>
         </div>
-        <button id="apply-filters" style="padding:8px 12px;">Apply</button>
-        <button id="clear-filters" style="padding:8px 12px;">Clear</button>
+        <div class="raw-filter-actions">
+            <button id="apply-filters" class="btn">Apply</button>
+            <button id="clear-filters" class="btn btn-outline">Clear</button>
+        </div>
     </div>
 
     <!-- Tabulator table placeholder -->
     <div id="tabulator-table"></div>
+
+    </main>
 
     <!-- Tabulator CSS/JS -->
     <link href="https://unpkg.com/tabulator-tables@5.4.4/dist/css/tabulator.min.css" rel="stylesheet">

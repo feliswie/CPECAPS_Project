@@ -10,6 +10,7 @@ from run_storage import (
 )
 import threading
 from io import BytesIO
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -199,16 +200,6 @@ def dashboard():
     """Dashboard placeholder page."""
     return render_template('pages/dashboard.html')
 
-@app.route('/alerts')
-def alerts():
-    """Render the alerts view using the latest processed telemetry."""
-    return render_template(
-        'pages/alerts.html',
-        alerts=load_latest_alerts(),
-        stats=load_latest_stats(),
-    )
-
-
 @app.route('/dashboard_data')
 def dashboard_data():
     """Return the latest processed device rows, alerts, and stats."""
@@ -222,6 +213,29 @@ def dashboard_data():
         'stats': stats,
         'meta': meta,
     })
+
+
+@app.route('/dashboard_upload', methods=['POST'])
+def dashboard_upload():
+    """Allow dashboard users to upload a consolidated MAIN workbook."""
+    upload = request.files.get('main_file')
+    if not upload or not upload.filename:
+        return jsonify({'error': 'Please choose an .xls or .xlsx file to upload.'}), 400
+
+    filename = secure_filename(upload.filename) or 'Manual_Upload.xlsx'
+    buffer = BytesIO(upload.read())
+    if buffer.getbuffer().nbytes == 0:
+        return jsonify({'error': 'Uploaded file appears to be empty.'}), 400
+    buffer.seek(0)
+
+    try:
+        meta = persist_run(buffer, filename)
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
+    except Exception as exc:  # pragma: no cover - defensive guard
+        return jsonify({'error': f'Failed to process workbook: {exc}'}), 500
+
+    return jsonify({'message': 'Workbook uploaded successfully.', 'meta': meta})
 
 
 if __name__ == '__main__':
