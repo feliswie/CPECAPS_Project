@@ -84,10 +84,27 @@ def _phase_one_normalize_dms(dms_wb, main_wb, progress_callback):
 
 
 def _phase_two_merge_rep(rep_wb, main_wb, progress_callback):
-    sheet = rep_wb.worksheets[0]
-    headers, header_map, header_row = _build_header_index(sheet, required_headers=['Begin Journey Date'])
+    # Prefer the sheet that actually contains the required header; fall back to first sheet
+    sheet = None
+    for candidate in rep_wb.worksheets:
+        headers_c, header_map_c, header_row_c = _build_header_index(candidate, required_headers=['Begin Journey Date'])
+        if 'begin journey date' in header_map_c:
+            sheet = candidate
+            headers, header_map, header_row = headers_c, header_map_c, header_row_c
+            break
+    if sheet is None:
+        # fallback to first sheet and detect headers there
+        sheet = rep_wb.worksheets[0]
+        headers, header_map, header_row = _build_header_index(sheet, required_headers=['Begin Journey Date'])
     begin_key = header_map.get('begin journey date')
     if not begin_key:
+        # Debug output: show the detected header row, raw header values and normalized map
+        try:
+            print('[DEBUG] repJourney header_row:', header_row)
+            print('[DEBUG] repJourney raw headers:', [repr(h) for h in headers])
+            print('[DEBUG] repJourney normalized header_map:', header_map)
+        except Exception as _err:
+            print('[DEBUG] failed printing headers for repJourney:', _err)
         _report(progress_callback, 2, status='error', message="Phase 2 error: column 'Begin Journey Date' not found in repJourney file")
         raise PipelineError("Phase 2 error: column 'Begin Journey Date' not found in repJourney file", phase=2)
 
@@ -273,9 +290,19 @@ def _build_header_index(
 def _normalize_header(value) -> str:
     if value is None:
         return ''
-    if isinstance(value, str):
-        return value.strip().lower()
-    return str(value).strip().lower()
+    # Coerce to string and strip whitespace
+    text = value if isinstance(value, str) else str(value)
+    text = text.strip()
+    if not text:
+        return ''
+    # Remove common surrounding quote characters and invisible unicode markers
+    # e.g. "'Company'", “Company”, zero-width spaces, BOM
+    text = re.sub(r"^[\uFEFF\u200B\u200C\u200D\u200E\u200F]+|[\uFEFF\u200B\u200C\u200D\u200E\u200F]+$", '', text)
+    # strip surrounding quotes or backticks
+    text = text.strip("'\"`“”‘’«»\[\](){}")
+    # collapse internal whitespace
+    text = re.sub(r"\s+", ' ', text)
+    return text.strip().lower()
 
 
 def _normalize_device_id(value) -> str:
