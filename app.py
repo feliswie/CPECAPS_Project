@@ -1,15 +1,17 @@
 from flask import Flask, render_template, request, jsonify, send_file
-from excel_handler import process_excel_file
-from database import init_db, update_or_insert_data, get_all_data
 from workbook_consolidator import run_workbook_pipeline
-import sqlite3
+from run_storage import (
+    persist_run,
+    load_latest_alerts,
+    load_latest_devices,
+    load_latest_stats,
+    get_latest_result_path,
+    load_latest_meta,
+)
 import threading
 from io import BytesIO
 
 app = Flask(__name__)
-
-# Initialize database on startup
-init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +108,7 @@ def _pipeline_progress_callback(phase, **payload):
 def _run_pipeline_async(dms_bytes: bytes, rep_bytes: bytes, main_bytes: bytes) -> None:
     try:
         buffer, filename = run_workbook_pipeline(dms_bytes, rep_bytes, main_bytes, _pipeline_progress_callback)
+        persist_run(buffer, filename)
         with progress_lock:
             result_payload['buffer'] = buffer
             result_payload['filename'] = filename
@@ -132,25 +135,6 @@ _reset_progress_state()
 def index():
     """Homepage"""
     return render_template('pages/index.html')
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    """Handle Excel file upload."""
-    file = request.files.get('file')
-    if file is None:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    try:
-        # Process the Excel file using our handler
-        df = process_excel_file(file)
-        
-        # Update database (update existing or insert new records)
-        inserted, updated = update_or_insert_data(df)
-        
-        return jsonify({"message": "Upload successful", "inserted": inserted, "updated": updated})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
 
 @app.route('/process', methods=['POST'])
 def process_pipeline():
@@ -190,21 +174,25 @@ def download():
         buffer = result_payload.get('buffer')
         filename = result_payload.get('filename') or 'Consolidated_MAIN.xlsx'
 
-    if not ready or buffer is None:
-        return jsonify({'error': 'Processed file is not ready yet.'}), 400
+    if ready and buffer is not None:
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
 
-    buffer.seek(0)
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=filename,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
+    stored_path = get_latest_result_path()
+    if stored_path:
+        return send_file(
+            stored_path,
+            as_attachment=True,
+            download_name=stored_path.name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
 
-@app.route('/raw_data')
-def raw_data():
-    """Display raw data page."""
-    return render_template('pages/raw_data.html')
+    return jsonify({'error': 'Processed file is not ready yet.'}), 400
 
 @app.route('/dashboard')
 def dashboard():
@@ -213,56 +201,27 @@ def dashboard():
 
 @app.route('/alerts')
 def alerts():
-    """Alerts placeholder page; supply minimal context to render the template."""
-    return render_template('pages/alerts.html', alerts={"soft": [], "urgent": []}, devices=[])
+    """Render the alerts view using the latest processed telemetry."""
+    return render_template(
+        'pages/alerts.html',
+        alerts=load_latest_alerts(),
+        stats=load_latest_stats(),
+    )
 
-@app.route('/data')
-def data():
-    """Return all data for the raw data table."""
-    df = get_all_data()
-    return jsonify(df.to_dict(orient='records'))
-
-@app.route('/clear_database', methods=['POST'])
-def clear_database():
-    """Clear all data from the database."""
-    try:
-        conn = sqlite3.connect('data.db')
-        conn.execute('DELETE FROM telemetry')
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "Database cleared successfully"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/update_database', methods=['POST'])
-def update_database():
-    """Update database entries with missing data."""
-    try:
-        df = get_all_data()
-        # Here you would implement logic to update missing data
-        # For demonstration, we will just re-insert the same data
-        inserted, updated = update_or_insert_data(df)
-        return jsonify({"message": "Database updated successfully", "inserted": inserted, "updated": updated})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/dashboard_data')
 def dashboard_data():
-    """Return dashboard data including alerts."""
-    from database import get_dashboard_alerts
-    
-    try:
-        alerts = get_dashboard_alerts()
-        df = get_all_data()
-        
-        return jsonify({
-            "devices": df.to_dict(orient='records'),
-            "alerts": alerts,
-            "total": len(df),
-            "timestamp": datetime.now().isoformat()
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    """Return the latest processed device rows, alerts, and stats."""
+    devices = load_latest_devices()
+    alerts = load_latest_alerts()
+    stats = load_latest_stats()
+    meta = load_latest_meta() or {}
+    return jsonify({
+        'devices': devices,
+        'alerts': alerts,
+        'stats': stats,
+        'meta': meta,
+    })
 
 
 if __name__ == '__main__':

@@ -94,108 +94,66 @@
 			height: 300px;
 		}
 		
-		.alerts-section {
+		.table-card {
 			background: #fff;
 			border-radius: 8px;
 			padding: 24px;
 			box-shadow: 0 1px 4px rgba(0,0,0,.08);
 		}
-		
-		.alerts-section h2 {
-			font-size: 1.25rem;
-			margin-bottom: 20px;
-			color: #2d3748;
-		}
-		
-		.alert-tabs {
+
+		.table-header {
 			display: flex;
-			gap: 8px;
-			margin-bottom: 20px;
-			border-bottom: 2px solid #e2e8f0;
-		}
-		
-		.alert-tab {
-			padding: 12px 24px;
-			background: none;
-			border: none;
-			font-size: 0.95rem;
-			font-weight: 600;
-			color: #718096;
-			cursor: pointer;
-			border-bottom: 3px solid transparent;
-			transition: all 0.2s;
-		}
-		
-		.alert-tab.active {
-			color: #667eea;
-			border-bottom-color: #667eea;
-		}
-		
-		.alert-tab:hover {
-			color: #667eea;
-		}
-		
-		.alert-list {
-			max-height: 400px;
-			overflow-y: auto;
-		}
-		
-		.alert-item {
-			padding: 16px;
-			border-left: 4px solid #e2e8f0;
-			background: #f7fafc;
+			flex-direction: column;
+			gap: 4px;
 			margin-bottom: 12px;
-			border-radius: 4px;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
 		}
-		
-		.alert-item.urgent {
-			border-left-color: #f56565;
-			background: #fff5f5;
-		}
-		
-		.alert-item.soft {
-			border-left-color: #ed8936;
-			background: #fffaf0;
-		}
-		
-		.alert-info h4 {
-			font-size: 1rem;
-			margin-bottom: 4px;
+
+		.table-header h2 {
+			font-size: 1.25rem;
+			margin: 0;
 			color: #2d3748;
 		}
-		
-		.alert-info p {
+
+		.table-note {
+			margin: 0;
+			color: #718096;
+			font-size: 0.9rem;
+		}
+
+		.table-wrapper {
+			overflow-x: auto;
+		}
+
+		.device-table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.device-table th,
+		.device-table td {
+			padding: 12px 16px;
+			border-bottom: 1px solid #e2e8f0;
+			text-align: left;
+			font-size: 0.95rem;
+		}
+
+		.device-table th {
+			background: #f8fafc;
 			font-size: 0.85rem;
-			color: #718096;
-		}
-		
-		.alert-badge {
-			padding: 6px 12px;
-			border-radius: 4px;
-			font-size: 0.75rem;
-			font-weight: 600;
 			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #4a5568;
 		}
-		
-		.alert-badge.urgent {
-			background: #f56565;
-			color: white;
+
+		.device-table tbody tr:hover {
+			background: #f7fafc;
 		}
-		
-		.alert-badge.soft {
-			background: #ed8936;
-			color: white;
-		}
-		
-		.no-alerts {
+
+		.empty-state {
 			text-align: center;
-			padding: 40px;
 			color: #718096;
 		}
-		
+
 		.loading {
 			text-align: center;
 			padding: 40px;
@@ -267,18 +225,28 @@
 			</div>
 		</div>
 		
-		<!-- Alerts Section -->
-		<div class="alerts-section">
-			<h2>Device Alerts</h2>
-			
-			<div class="alert-tabs">
-				<button class="alert-tab active" data-tab="all">All Alerts</button>
-				<button class="alert-tab" data-tab="urgent">Urgent</button>
-				<button class="alert-tab" data-tab="soft">Soft Alerts</button>
+		<!-- Device Table -->
+		<div class="table-card">
+			<div class="table-header">
+				<h2>Latest device snapshot</h2>
+				<p class="table-note" id="deviceTableNote">Waiting for a completed run...</p>
 			</div>
-			
-			<div id="alertsContainer" class="alert-list">
-				<div class="loading">Loading alerts...</div>
+			<div class="table-wrapper">
+				<table class="device-table">
+					<thead>
+						<tr>
+							<th>Device ID</th>
+							<th>Last sighted</th>
+							<th>Location</th>
+							<th>Location code</th>
+						</tr>
+					</thead>
+					<tbody id="deviceTableBody">
+						<tr>
+							<td colspan="4" class="empty-state">No processed workbook yet.</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</div>
@@ -286,94 +254,81 @@
 	<script>
 		let dashboardData = {
 			devices: [],
-			alerts: { urgent: [], soft: [] }
+			alerts: { urgent: [], soft: [] },
+			stats: {},
+			meta: {}
 		};
-		
+
 		let statusChart = null;
 		let locationChart = null;
-		
-		// Fetch dashboard data
+
 		async function fetchDashboardData() {
 			try {
-				const response = await fetch('/data');
-				if (!response.ok) throw new Error('Failed to fetch data');
+				const response = await fetch('/dashboard_data');
+				if (!response.ok) throw new Error('Failed to fetch dashboard data.');
 				const data = await response.json();
-				dashboardData.devices = data;
-				calculateAlerts();
+				dashboardData.devices = data.devices || [];
+				dashboardData.alerts = data.alerts || { urgent: [], soft: [] };
+				dashboardData.stats = data.stats || {};
+				dashboardData.meta = data.meta || {};
 				updateDashboard();
 			} catch (error) {
 				showError('Failed to load dashboard data: ' + error.message);
 			}
 		}
-		
-		// Calculate alerts based on inactivity
-		function calculateAlerts() {
-			const now = new Date();
-			dashboardData.alerts = { urgent: [], soft: [] };
-			
-			dashboardData.devices.forEach(device => {
-				const lastSeen = new Date(device.Last_Sighted_Date);
-				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
-				
-				const alertData = {
-					Device_ID: device.Device_ID,
-					Last_Sighted: device.Last_Sighted_Date,
-					Days_Inactive: daysInactive,
-					Location: device.Last_Sighted_Location
-				};
-				
-				if (daysInactive >= 7) {
-					dashboardData.alerts.urgent.push(alertData);
-				} else if (daysInactive >= 3) {
-					dashboardData.alerts.soft.push(alertData);
-				}
-			});
-		}
-		
+
 		function updateDashboard() {
 			updateStatistics();
 			updateCharts();
-			updateAlertsList('all');
+			renderDeviceTable();
 			updateLastUpdated();
 		}
-		
-		function updateStatistics() {
-			const total = dashboardData.devices.length;
+
+		function computeActiveCount() {
 			const now = new Date();
-			const active = dashboardData.devices.filter(d => {
-				const lastSeen = new Date(d.Last_Sighted_Date);
+			return dashboardData.devices.filter(device => {
+				const lastSeen = new Date(device.Last_Sighted_Date);
+				if (isNaN(lastSeen)) return false;
 				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
 				return daysInactive < 3;
 			}).length;
-			
+		}
+
+		function updateStatistics() {
+			const stats = dashboardData.stats || {};
+			const total = stats.total_devices ?? dashboardData.devices.length;
+			const active = stats.active_devices ?? computeActiveCount();
+			const softCount = stats.soft_count ?? (dashboardData.alerts.soft?.length || 0);
+			const urgentCount = stats.urgent_count ?? (dashboardData.alerts.urgent?.length || 0);
+
 			document.getElementById('totalDevices').textContent = total;
 			document.getElementById('activeDevices').textContent = active;
-			document.getElementById('softAlerts').textContent = dashboardData.alerts.soft.length;
-			document.getElementById('urgentAlerts').textContent = dashboardData.alerts.urgent.length;
+			document.getElementById('softAlerts').textContent = softCount;
+			document.getElementById('urgentAlerts').textContent = urgentCount;
 		}
-		
+
 		function updateCharts() {
 			updateStatusChart();
 			updateLocationChart();
 		}
-		
+
 		function updateStatusChart() {
 			const now = new Date();
 			let active = 0, soft = 0, urgent = 0;
-			
+
 			dashboardData.devices.forEach(d => {
 				const lastSeen = new Date(d.Last_Sighted_Date);
 				const daysInactive = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
-				
+
 				if (daysInactive < 3) active++;
 				else if (daysInactive < 7) soft++;
 				else urgent++;
 			});
-			
+
 			const ctx = document.getElementById('statusChart').getContext('2d');
-			
+
 			if (statusChart) statusChart.destroy();
-			
+
 			statusChart = new Chart(ctx, {
 				type: 'doughnut',
 				data: {
@@ -395,22 +350,22 @@
 				}
 			});
 		}
-		
+
 		function updateLocationChart() {
 			const locationCounts = {};
-			
+
 			dashboardData.devices.forEach(d => {
 				const loc = d.Last_Sighted_Location || 'Unknown';
 				locationCounts[loc] = (locationCounts[loc] || 0) + 1;
 			});
-			
+
 			const locations = Object.keys(locationCounts).slice(0, 10);
 			const counts = locations.map(loc => locationCounts[loc]);
-			
+
 			const ctx = document.getElementById('locationChart').getContext('2d');
-			
+
 			if (locationChart) locationChart.destroy();
-			
+
 			locationChart = new Chart(ctx, {
 				type: 'bar',
 				data: {
@@ -441,59 +396,56 @@
 				}
 			});
 		}
-		
-		function updateAlertsList(filter) {
-			const container = document.getElementById('alertsContainer');
-			let alerts = [];
-			
-			if (filter === 'all') {
-				alerts = [...dashboardData.alerts.urgent, ...dashboardData.alerts.soft];
-			} else if (filter === 'urgent') {
-				alerts = dashboardData.alerts.urgent;
-			} else if (filter === 'soft') {
-				alerts = dashboardData.alerts.soft;
-			}
-			
-			if (alerts.length === 0) {
-				container.innerHTML = '<div class="no-alerts">No alerts to display</div>';
+
+		function renderDeviceTable(limit = 50) {
+			const body = document.getElementById('deviceTableBody');
+			const note = document.getElementById('deviceTableNote');
+			if (!dashboardData.devices.length) {
+				body.innerHTML = '<tr><td colspan="4" class="empty-state">No processed workbook yet.</td></tr>';
+				note.textContent = 'Waiting for the first successful consolidation run.';
 				return;
 			}
-			
-			container.innerHTML = alerts.map(alert => {
-				const type = alert.Days_Inactive >= 7 ? 'urgent' : 'soft';
-				const typeLabel = type === 'urgent' ? 'URGENT' : 'WARNING';
-				
-				return `
-					<div class="alert-item ${type}">
-						<div class="alert-info">
-							<h4>Device ${alert.Device_ID}</h4>
-							<p>${alert.Location} • Inactive for ${alert.Days_Inactive} days • Last seen: ${new Date(alert.Last_Sighted).toLocaleDateString()}</p>
-						</div>
-						<div class="alert-badge ${type}">${typeLabel}</div>
-					</div>
-				`;
-			}).join('');
+
+			const rows = dashboardData.devices.slice(0, limit).map(device => `
+				<tr>
+					<td>${device.Device_ID || '—'}</td>
+					<td>${formatDate(device.Last_Sighted_Date)}</td>
+					<td>${device.Last_Sighted_Location || '—'}</td>
+					<td>${device.Location_Code || '—'}</td>
+				</tr>
+			`).join('');
+			body.innerHTML = rows;
+			const total = dashboardData.devices.length;
+			const generated = dashboardData.meta.generated_at || dashboardData.stats.generated_at;
+			const timestamp = generated ? new Date(generated) : null;
+			const formattedTs = timestamp && !isNaN(timestamp) ? timestamp.toLocaleString() : generated;
+			note.textContent = `Showing ${Math.min(limit, total).toLocaleString()} of ${total.toLocaleString()} devices${formattedTs ? ` • updated ${formattedTs}` : ''}.`;
 		}
 
 		function updateLastUpdated() {
-			document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+			const target = document.getElementById('lastUpdate');
+			const generated = dashboardData.stats.generated_at || dashboardData.meta.generated_at;
+			if (!generated) {
+				target.textContent = '—';
+				return;
+			}
+			const dt = new Date(generated);
+			target.textContent = isNaN(dt) ? generated : dt.toLocaleString();
 		}
-		
+
+		function formatDate(value) {
+			if (!value) return '—';
+			const dt = new Date(value);
+			if (isNaN(dt)) return value;
+			return dt.toLocaleString();
+		}
+
 		function showError(message) {
 			const container = document.getElementById('errorContainer');
 			container.innerHTML = `<div class="error">${message}</div>`;
 		}
-		
-		document.addEventListener('click', (e) => {
-			if (e.target.classList.contains('alert-tab')) {
-				document.querySelectorAll('.alert-tab').forEach(tab => tab.classList.remove('active'));
-				e.target.classList.add('active');
-				updateAlertsList(e.target.dataset.tab);
-			}
-		});
-		
+
 		fetchDashboardData();
-		
 		setInterval(fetchDashboardData, 30000);
 	</script>
 </body>
